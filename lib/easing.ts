@@ -102,6 +102,8 @@ export const EASING_PRESETS: EasingPreset[] = [
   { id: 'sweep',  label: 'Sweep',  group: 'signature', bezier: [0.70, 0.10, 0.30, 0.90] },
   { id: 'smooth', label: 'Smooth', group: 'signature', bezier: [0.76, 0.00, 0.24, 1.00] },
   { id: 'flip',   label: 'Flip',   group: 'signature', bezier: [0.33, 0.00, 0.57, 1.00] },
+  { id: 'settle', label: 'Settle', group: 'signature', bezier: [0.80, 0.27, 0.20, 0.75] },
+  { id: 'snap',   label: 'Snap',   group: 'signature', bezier: [1.00, 0.00, 0.00, 1.00] },
 
   // Standard in / out / in-out families
   { id: 'sineIn',    label: 'Sine In',     group: 'standard', bezier: [0.12, 0.00, 0.39, 0.00] },
