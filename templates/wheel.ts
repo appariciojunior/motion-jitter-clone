@@ -7,7 +7,7 @@ const BASE = 340;
 // Wheel — cards on a rotating ring (or a fan arc). Featured card is the one
 // nearest the top of the wheel; Spin Thumbs tilts cards along the tangent.
 const wheel: Template = {
-  meta: { id: 'wheel-01', name: 'Wheel 01', group: 'Wheel' },
+  meta: { id: 'wheel-01', name: 'Wheel 01', group: 'Wheel', defaultEasing: { id: 'flow' } },
 
   controls: [
     { key: 'direction',    label: 'Direction',     type: 'toggle', options: ['forward','reverse'], default: 'forward' },
@@ -25,7 +25,7 @@ const wheel: Template = {
 
   transform: (frame, index, count, v, ctx) => {
     const dir = v.direction === 'reverse' ? -1 : 1;
-    const phase = (frame / ctx.fps) * v.speed * dir;
+    const phase = ctx.easedPhase((frame / ctx.fps) * v.speed * dir);
     const sizeFactor = v.cardSize / BASE;
 
     const kind = v.mode === 'fan' ? 'arc' : 'ring';

@@ -7,7 +7,7 @@ const BASE = 340;
 // Stories — a horizontal strip with one dominant featured card and small
 // neighbours peeking at the edges. Flat (no fake-3D), fades to the sides.
 const stories: Template = {
-  meta: { id: 'stories-01', name: 'Stories 01', group: 'Stories' },
+  meta: { id: 'stories-01', name: 'Stories 01', group: 'Stories', defaultEasing: { id: 'linear' } },
 
   controls: [
     { key: 'direction',    label: 'Direction',     type: 'toggle', options: ['forward','reverse'], default: 'forward' },
@@ -23,7 +23,7 @@ const stories: Template = {
 
   transform: (frame, index, count, v, ctx) => {
     const dir = v.direction === 'reverse' ? -1 : 1;
-    const phase = (frame / ctx.fps) * v.speed * dir;
+    const phase = ctx.easedPhase((frame / ctx.fps) * v.speed * dir);
     const sizeFactor = v.cardSize / BASE;
 
     const p = cardPath({ kind: 'line', index, count, phase, gap: 1, wrap: true });

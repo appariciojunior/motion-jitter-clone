@@ -3,6 +3,7 @@
 import { useSceneStore } from '@/store/useSceneStore';
 import { getTemplate, templateList } from '@/templates';
 import { ControlRow } from './Controls';
+import EasingPanel from './EasingPanel';
 
 // Renders the SCENE + TIMING sections (no card wrapper — the page composes cards).
 export default function ScenePanel() {
@@ -44,6 +45,10 @@ export default function ScenePanel() {
           onChange={(v) => setDuration(Math.max(1, Number(v)))}
         />
       </div>
+
+      <div className="hairline" />
+
+      <EasingPanel />
     </>
   );
 }

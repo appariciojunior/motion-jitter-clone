@@ -6,7 +6,7 @@ import { cardPath } from '@/lib/cardPath';
 const BASE = 340;
 
 export const carousel: Template = {
-  meta: { id: 'carousel', name: 'Carousel', group: 'Carousel' },
+  meta: { id: 'carousel', name: 'Carousel', group: 'Carousel', defaultEasing: { id: 'glide' } },
 
   controls: [
     { key: 'direction',    label: 'Direction',     type: 'toggle', options: ['forward','reverse'], default: 'forward' },
@@ -23,7 +23,7 @@ export const carousel: Template = {
 
   transform: (frame, index, count, v, ctx) => {
     const dir = v.direction === 'reverse' ? -1 : 1;
-    const phase = (frame / ctx.fps) * v.speed * dir;            // ← Speed + Direction
+    const phase = ctx.easedPhase((frame / ctx.fps) * v.speed * dir); // ← Speed + Direction + Easing
 
     // Cards recycle seamlessly (wrap). Featuredness peaks at centre.
     const p = cardPath({ kind: 'line', index, count, phase, gap: 1, wrap: true });

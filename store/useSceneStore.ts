@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { defaultsFor } from '@/templates';
+import { defaultsFor, easingFor } from '@/templates';
+import type { EasingSpec } from '@/lib/easing';
 
 // ---------- canvas dimension helpers ----------
 export const ASPECTS: Record<string, [number, number]> = {
@@ -55,6 +56,7 @@ export interface SceneState {
   // motion template
   activeTemplateId: string;
   values: Record<string, any>;
+  easing: EasingSpec;   // scene easing curve (seeded from the template default)
 
   // clock
   frame: number;
@@ -81,6 +83,8 @@ export interface SceneState {
   // ---- actions ----
   setValue: (key: string, val: any) => void;
   setActiveTemplate: (id: string) => void;
+  setEasing: (easing: EasingSpec) => void;
+  resetValues: () => void;
   setFrame: (frame: number) => void;
   setPlaying: (p: boolean) => void;
   setFps: (fps: number) => void;
@@ -117,6 +121,7 @@ const initDims = dimsFor('3:4');
 export const useSceneStore = create<SceneState>((set, get) => ({
   activeTemplateId: INITIAL_TEMPLATE,
   values: defaultsFor(INITIAL_TEMPLATE),
+  easing: easingFor(INITIAL_TEMPLATE),
 
   frame: 0,
   fps: 30,
@@ -138,9 +143,16 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   setValue: (key, val) =>
     set((s) => ({ values: { ...s.values, [key]: val } })),
 
-  // full reset on template switch: wipe bag, refill from declared defaults
+  // full reset on template switch: wipe bag, refill from declared defaults,
+  // and seed the scene easing from the template's default curve.
   setActiveTemplate: (id) =>
-    set(() => ({ activeTemplateId: id, values: defaultsFor(id), frame: 0 })),
+    set(() => ({ activeTemplateId: id, values: defaultsFor(id), easing: easingFor(id), frame: 0 })),
+
+  setEasing: (easing) => set(() => ({ easing })),
+
+  // "Reset all values": restore the active template's declared defaults + easing.
+  resetValues: () =>
+    set((s) => ({ values: defaultsFor(s.activeTemplateId), easing: easingFor(s.activeTemplateId) })),
 
   setFrame: (frame) => set(() => ({ frame })),
   setPlaying: (p) => set(() => ({ playing: p })),

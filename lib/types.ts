@@ -1,4 +1,5 @@
 import type * as PIXI from 'pixi.js';
+import type { EasingSpec } from './easing';
 
 // ----- Control vocabulary. Templates may ONLY use these types. -----
 export type ControlType =
@@ -32,16 +33,32 @@ export interface LayerTransform {
   depth: number;     // sort order; higher = drawn on top / nearer
 }
 
+// ----- The transform context handed to every template each frame -----
+export interface TransformCtx {
+  fps: number;
+  width: number;
+  height: number;
+  // The scene's active easing curve, t∈[0,1] → y (see lib/easing).
+  ease: (t: number) => number;
+  // Remap a cyclic phase so each unit step is shaped by `ease`, keeping the
+  // loop seamless: floor(p) + ease(frac(p)). Templates route their raw
+  // (time·speed) phase through this to inherit the scene easing.
+  easedPhase: (phase: number) => number;
+}
+
 // ----- A motion template (SEAM 1) -----
 export interface Template {
-  meta: { id: string; name: string; group: string; thumbnail?: string };
+  meta: {
+    id: string; name: string; group: string; thumbnail?: string;
+    defaultEasing?: EasingSpec;               // curve the template ships with
+  };
   controls: ControlDef[];                     // its FULL own set
   transform: (
     frame: number,                            // absolute frame index
     index: number,                            // this layer's slot 0..count-1
     count: number,                            // total active layers
     values: Record<string, any>,              // current control values
-    ctx: { fps: number; width: number; height: number } // canvas ctx
+    ctx: TransformCtx                          // canvas ctx + easing
   ) => LayerTransform;                         // PURE. no side effects.
 }
 

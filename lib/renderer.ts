@@ -3,6 +3,7 @@ import { PixelateFilter } from 'pixi-filters';
 import { getTemplate } from '@/templates';
 import { getEffect } from '@/effects';
 import { useSceneStore, type SceneState } from '@/store/useSceneStore';
+import { resolveEasing } from '@/lib/easing';
 
 // Reference base long-edge (px) shared with templates (carousel BASE = 340),
 // so control values read directly in on-screen pixels.
@@ -259,7 +260,16 @@ export class SceneRenderer {
 
     const template = getTemplate(s.activeTemplateId);
     const count = this.slots.length;
-    const ctx = { fps: s.fps, width: s.width, height: s.height };
+
+    // Resolve the scene easing once per frame; shape cyclic phases so each
+    // unit step follows the curve while the loop stays seamless (ease(0)=0,
+    // ease(1)=1 ⇒ continuous at every integer boundary).
+    const ease = resolveEasing(s.easing);
+    const easedPhase = (phase: number) => {
+      const base = Math.floor(phase);
+      return base + ease(phase - base);
+    };
+    const ctx = { fps: s.fps, width: s.width, height: s.height, ease, easedPhase };
 
     for (let i = 0; i < count; i++) {
       const slot = this.slots[i];

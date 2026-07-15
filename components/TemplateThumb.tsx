@@ -2,13 +2,14 @@
 
 import { useMemo } from 'react';
 import type { Template } from '@/lib/types';
-import { defaultsFor } from '@/templates';
+import { defaultsFor, easingFor } from '@/templates';
+import { resolveEasing } from '@/lib/easing';
 
 // Live template thumbnail: run the template's own transform at a fixed frame
 // and render the resulting card layout as plain divs. Because it uses the real
 // transform + declared defaults, thumbs always match the actual motion.
 const THUMB_FRAME = 40;              // ~1.3s in — mid-motion pose
-const CTX = { fps: 30, width: 810, height: 1080 }; // 3:4 preview space
+const CTX_BASE = { fps: 30, width: 810, height: 1080 }; // 3:4 preview space
 const TEX_W = 480, TEX_H = 600;      // placeholder texture proportions
 const SPRITE_BASE = 340;
 
@@ -22,9 +23,15 @@ export default function TemplateThumb({ template }: { template: Template }) {
     const v = defaultsFor(template.meta.id);
     const count = Math.max(1, Math.min(20, Math.round(v.count ?? 6)));
     const norm = SPRITE_BASE / Math.max(TEX_W, TEX_H);
+    const ease = resolveEasing(easingFor(template.meta.id));
+    const ctx = {
+      ...CTX_BASE,
+      ease,
+      easedPhase: (phase: number) => { const b = Math.floor(phase); return b + ease(phase - b); },
+    };
     const out: CardPose[] = [];
     for (let i = 0; i < count; i++) {
-      const t = template.transform(THUMB_FRAME, i, count, v, CTX);
+      const t = template.transform(THUMB_FRAME, i, count, v, ctx);
       const w = TEX_W * norm * t.scale;
       const h = TEX_H * norm * t.scale;
       out.push({
@@ -47,10 +54,10 @@ export default function TemplateThumb({ template }: { template: Template }) {
           key={i}
           className="tpl-thumb-el"
           style={{
-            width: `${(p.w / CTX.width) * 100}%`,
+            width: `${(p.w / CTX_BASE.width) * 100}%`,
             aspectRatio: `${TEX_W} / ${TEX_H}`,
-            left: `${50 + (p.x / CTX.width) * 100}%`,
-            top: `${50 + (p.y / CTX.height) * 100}%`,
+            left: `${50 + (p.x / CTX_BASE.width) * 100}%`,
+            top: `${50 + (p.y / CTX_BASE.height) * 100}%`,
             transform: `translate(-50%, -50%) rotate(${p.rotation}rad) skewX(${p.skewX}rad)`,
             opacity: p.alpha,
             zIndex: p.z,

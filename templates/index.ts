@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { DEFAULT_EASING, type EasingSpec } from '@/lib/easing';
 import { carousel } from './carousel';
 import { variant } from './variant';
 import { wheelVariants } from './wheel';
@@ -57,4 +58,10 @@ export function defaultsFor(id: string): Record<string, any> {
       : c.default;
   }
   return values;
+}
+
+// The easing curve a template ships with (falls back to linear).
+export function easingFor(id: string): EasingSpec {
+  const spec = getTemplate(id).meta.defaultEasing ?? DEFAULT_EASING;
+  return { ...spec }; // clone so state never shares the preset reference
 }
