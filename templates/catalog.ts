@@ -507,13 +507,13 @@ function storesSecondsDisplaysFrames(group: string, key: string) {
 
 function frameDisplayControlValue(def: ScrapedControl, value: number, group: string) {
   if (!storesSecondsDisplaysFrames(group, def.key)) return value;
-  // Older scraped catalogues stored these values as raw frame counts. The live
-  // Arqé app stores seconds and only formats them as frames in the panel.
+  // Older scraped catalogues stored these values as raw frame counts. The
+  // reference app stores seconds and only formats them as frames in the panel.
   return def.kind === 'slider' && (def.max > 2 || def.step >= 1) ? value / 30 : value;
 }
 
 function toControl(def: ScrapedControl, value: any, values: Values, group: string): ControlDef {
-  // Arqé's Carousel panel exposes both a "Tilt" mode toggle and an "Amount"
+  // The reference Carousel panel exposes both a "Tilt" mode toggle and an "Amount"
   // slider whose underlying parameter is also named `tilt`. Keep the numeric
   // parameter as `tilt` and give the mode its real store key, `tiltStyle`.
   const isCarouselTiltMode = def.kind === 'toggle' && def.key === 'tilt' && def.label === 'Tilt';

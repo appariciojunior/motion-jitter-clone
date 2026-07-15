@@ -1,8 +1,8 @@
-# motion-jitter-clone
+# Motion Studio
 
-Self-hosted 2D motion-graphics tool on localhost. Drag in images, pick a motion
-template, tweak live controls, preview in real time, export MP4/GIF via native
-ffmpeg. Personal use, single machine, no auth.
+An **open-source factory for quick videos and GIFs**. Drag in images, pick a
+motion template, tweak live controls, preview in real time, and export MP4/GIF
+via native ffmpeg. Runs self-hosted on localhost — single machine, no auth.
 
 ![UI](design-audit.png)
 
@@ -33,7 +33,7 @@ Layers (assets → Pixi sprites, slots in order)
 
 Principles: one live state read every frame · templates fully self-declare
 their controls · full value reset on template switch · fixed 8-type control
-vocabulary · shared `cardPath` helper (line / arc / ring / zwall).
+vocabulary.
 
 ## Templates (189 across 25 families)
 
@@ -51,10 +51,18 @@ easing presets, with editable handles for custom curves.
 panel, thumbnail, live preview, and export pick it up automatically. Effects
 remain self-contained in `effects/`.
 
+## Canvas & assets
+
+- **FPS** 30 or 60 · aspect presets · safe-area guide.
+- **Background** — Color (solid/gradient), Image (upload + blur), or From card
+  (a blurred reflection of the featured card that moves with the animation).
+- **Assets** — one slot per layer, linked 1:1 to the template's Count; each
+  slot binds positionally to a layer.
+
 ## Design system
 
-Tokens extracted from the Figma reference (`styles/tokens.css`): `#171717`
-cards (r14) on `#0d0d0d`, `#232323` tracks, `#2d2d2d` thumbs, 13px/#ccc labels,
-10px/1.5px eyebrows, value-inside-track sliders, dashed-ruler timeline with a
-playhead chip. `design-audit.png` is a 2× full-quality capture for auditing
-typography and spacing.
+Neutral-grey token set (`styles/tokens.css`): `#171717` cards (r14) on
+`#0d0d0d`, `#232323` tracks, `#2d2d2d` thumbs, 13px/#ccc labels, 10px/1.5px
+eyebrows, value-inside-track sliders, dashed-ruler timeline with a playhead
+chip. `design-audit.png` is a 2× full-quality capture for auditing typography
+and spacing.

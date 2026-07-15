@@ -3,8 +3,8 @@ import '../styles/tokens.css';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Motion',
-  description: 'Local 2D motion-graphics tool',
+  title: 'Motion Studio',
+  description: 'Motion Studio — an open-source factory for quick videos and GIFs.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

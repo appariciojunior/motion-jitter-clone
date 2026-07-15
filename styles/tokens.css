@@ -1,8 +1,7 @@
 /* ============================================================
-   DESIGN TOKENS — extracted from the Figma reference frame
-   (Design Circuit / Arqé, node 7587:809). Pure neutral greys,
-   no hue anywhere. Panels are floating #171717 cards with 14px
-   radius on a #0d0d0d body, 8px gutters.
+   MOTION STUDIO — DESIGN TOKENS
+   Pure neutral greys, no hue anywhere. Panels are floating
+   #171717 cards with 14px radius on a #0d0d0d body, 8px gutters.
    ============================================================ */
 :root {
   /* ---- Surfaces ---- */
@@ -36,7 +35,7 @@
   --r-chip:  4px;    /* kbd chip, playhead chip */
   --r-nav:   10px;   /* rail nav buttons */
 
-  /* ---- Type scale (Arqé font in the ref; Inter stands in) ---- */
+  /* ---- Type scale (Inter) ---- */
   --fs-label: 13px;  /* control labels, lh 19.5 */
   --fs-ui:    12px;  /* segments, values, buttons, time, lh 18 */
   --fs-eyebrow: 10px;/* section eyebrows, Medium, tracking 1.5px */

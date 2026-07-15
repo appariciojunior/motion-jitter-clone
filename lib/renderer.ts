@@ -35,11 +35,12 @@ export class SceneRenderer {
   app: PIXI.Application;
   private content = new PIXI.Container();       // bg + motion (effects applied here)
   private bg = new PIXI.Graphics();
+  private bgSprite = new PIXI.Sprite();          // image / card-reflected background
+  private bgBlur = new PIXI.BlurFilter({ strength: 28, quality: 4 });
   private motion = new PIXI.Container();         // card sprites
-  private overlay = new PIXI.Container();        // logo/text/safe-area (unfiltered)
+  private overlay = new PIXI.Container();        // logo/safe-area (unfiltered)
   private safeGfx = new PIXI.Graphics();
   private logoSprite: PIXI.Sprite | null = null;
-  private textNode: PIXI.Text;
   private placeholder!: PIXI.Texture;
   private textureCache = new Map<string, PIXI.Texture>();
   private texturePromises = new Map<string, Promise<PIXI.Texture | null>>();
@@ -50,10 +51,11 @@ export class SceneRenderer {
   private lastCountSig = -1;
   private lastEffectsRef: SceneState['effects'] | null = null;
   private lastOverlaySig = '';
+  private bgImageUrl = '';                        // last-loaded uploaded bg url
+  private bgImageTex: PIXI.Texture | null = null;
 
   constructor(private readonly invalidate: () => void = () => {}) {
     this.app = new PIXI.Application();
-    this.textNode = new PIXI.Text({ text: '', style: { fill: 0xffffff, fontSize: 48, fontWeight: '700', fontFamily: 'Inter, system-ui, sans-serif' } });
   }
 
   async init(canvas: HTMLCanvasElement) {
@@ -71,9 +73,12 @@ export class SceneRenderer {
     });
 
     this.motion.sortableChildren = true;
-    this.content.addChild(this.bg, this.motion);
+    this.bgSprite.anchor.set(0.5);
+    this.bgSprite.visible = false;
+    this.bgSprite.filters = [this.bgBlur];
+    this.content.addChild(this.bg, this.bgSprite, this.motion);
     this.app.stage.addChild(this.content, this.overlay);
-    this.overlay.addChild(this.safeGfx, this.textNode);
+    this.overlay.addChild(this.safeGfx);
 
     this.placeholder = makePlaceholderTexture(this.app);
     this.ready = true;
@@ -85,6 +90,7 @@ export class SceneRenderer {
     if (!this.ready) return;
     this.app.renderer.resize(width, height);
     this.motion.position.set(width / 2, height / 2);
+    this.bgSprite.position.set(width / 2, height / 2);
     this.content.filterArea = new PIXI.Rectangle(0, 0, width, height);
     this.overlay.position.set(0, 0);
   }
@@ -117,12 +123,12 @@ export class SceneRenderer {
     return promise;
   }
 
-  // Rebuild the sprite pool to match count; map assets → slots in order (wrap).
+  // Rebuild the sprite pool to match count; slot i binds to asset i (positional,
+  // 1:1 with the Assets panel). Empty/hidden slots fall back to a numbered card.
   syncAssets() {
     if (!this.ready) return;
     const s = useSceneStore.getState();
     const count = Math.max(1, Math.round(s.values.count ?? 6));
-    const visible = s.assets.filter((a) => a.visible);
 
     if (count === this.lastCountSig && s.assets === this.lastAssetsRef) return;
     this.lastCountSig = count;
@@ -149,16 +155,16 @@ export class SceneRenderer {
       slot.container.destroy({ children: true });
     }
 
-    // assign textures — placeholder cards when no assets, else images in order (wrap)
+    // assign textures — slot i ↔ asset i; missing/hidden → numbered placeholder
     this.slots.forEach((slot, i) => {
-      if (visible.length === 0) {
+      const asset = s.assets[i];
+      if (!asset || !asset.visible) {
         slot.sprite.texture = this.placeholder;
         slot.sprite.tint = PLACEHOLDER_FILL;
         slot.label.text = String(i + 1);
         slot.label.visible = true;
         slot.texW = 480; slot.texH = 600; slot.cornerR = -1;
       } else {
-        const asset = visible[i % visible.length];
         slot.sprite.tint = 0xffffff;
         slot.label.visible = false;
         this.loadTexture(asset.url).then((tex) => {
@@ -206,7 +212,6 @@ export class SceneRenderer {
       width, height, s.safeArea,
       s.background.color, s.background.gradient, s.background.color2,
       s.logo.url, s.logo.position, s.logo.size,
-      s.text.content, s.text.position, s.text.color, s.text.size,
     ].join('|');
     if (sig === this.lastOverlaySig) return;
     this.lastOverlaySig = sig;
@@ -254,16 +259,41 @@ export class SceneRenderer {
     } else if (this.logoSprite) {
       this.logoSprite.visible = false;
     }
+  }
 
-    // text
-    this.textNode.text = s.text.content ?? '';
-    this.textNode.style.fill = s.text.color;
-    this.textNode.style.fontSize = s.text.size;
-    this.textNode.anchor.set(0.5);
-    const ty = s.text.position === 'top' ? height * 0.12
-      : s.text.position === 'center' ? height * 0.5
-      : height * 0.88;
-    this.textNode.position.set(width / 2, ty);
+  // Image / card-reflected background. Called every frame (outside the overlay
+  // sig cache) so the 'card' source can follow the featured card's live position.
+  private updateBackground(
+    s: SceneState,
+    featured: { tex: PIXI.Texture; x: number; y: number } | null,
+  ) {
+    const bg = s.background;
+    const { width, height } = s;
+
+    let tex: PIXI.Texture | null = null;
+    let follow = false;
+    if (bg.source === 'image') {
+      if (bg.imageUrl && bg.imageUrl !== this.bgImageUrl) {
+        this.bgImageUrl = bg.imageUrl;
+        this.bgImageTex = null;
+        this.loadTexture(bg.imageUrl).then((t) => { if (t) { this.bgImageTex = t; this.invalidate(); } });
+      }
+      if (!bg.imageUrl) { this.bgImageUrl = ''; this.bgImageTex = null; }
+      tex = this.bgImageTex;
+    } else if (bg.source === 'card' && featured) {
+      tex = featured.tex;
+      follow = true;
+    }
+
+    if (!tex) { this.bgSprite.visible = false; return; }
+
+    this.bgSprite.visible = true;
+    this.bgSprite.texture = tex;
+    const cover = Math.max(width / tex.width, height / tex.height) * 1.4; // headroom for drift
+    this.bgSprite.scale.set(cover);
+    const k = follow ? 0.18 : 0; // 'card' bg drifts with the featured card
+    this.bgSprite.position.set(width / 2 + (featured?.x ?? 0) * k, height / 2 + (featured?.y ?? 0) * k);
+    this.bgBlur.strength = Math.max(0, bg.blur);
   }
 
   /**
@@ -285,6 +315,10 @@ export class SceneRenderer {
     const cycles = Number(s.values.cycles ?? 1);
     const delay = Number(s.values.delay ?? 0);
     const stagger = Number(s.values.stagger ?? 0);
+
+    // Track the featured (front-most) card so a 'card' background can reflect it.
+    let featured: { tex: PIXI.Texture; x: number; y: number } | null = null;
+    let featuredDepth = -Infinity;
 
     for (let i = 0; i < count; i++) {
       const slot = this.slots[i];
@@ -317,7 +351,14 @@ export class SceneRenderer {
       slot.container.skew.set(t.skewX ?? 0, t.skewY ?? 0);
       slot.container.zIndex = t.depth * 1000;
       this.applyMask(slot, s.values.cornerRadius ?? 0);
+
+      if (t.depth > featuredDepth && t.alpha > 0.15) {
+        featuredDepth = t.depth;
+        featured = { tex: slot.sprite.texture, x: t.x, y: t.y };
+      }
     }
+
+    this.updateBackground(s, featured);
   }
 
   // Realize + render a frame synchronously (used by export).

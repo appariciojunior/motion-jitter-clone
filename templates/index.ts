@@ -1,7 +1,7 @@
 import type { Template } from '@/lib/types';
 import { completeTemplateList } from './catalog';
 
-// Verified against the live Arqé Singles catalogue: 25 families, 189 presets.
+// Verified against the reference Singles catalogue: 25 families, 189 presets.
 export const templateList: Template[] = completeTemplateList;
 
 export const templates: Record<string, Template> = Object.fromEntries(
