@@ -6,7 +6,7 @@ const BASE = 340;
 // Orbit — cards circle an ellipse; the front-most card grows and passes in
 // front, then recedes behind. Flat ellipses read as a side-pass conveyor.
 const orbit: Template = {
-  meta: { id: 'orbit-01', name: 'Orbit 01', group: 'Orbit' },
+  meta: { id: 'orbit-01', name: 'Orbit 01', group: 'Orbit', defaultEasing: { id: 'flow' } },
 
   controls: [
     { key: 'direction',    label: 'Direction',     type: 'toggle', options: ['forward','reverse'], default: 'forward' },
@@ -24,7 +24,7 @@ const orbit: Template = {
 
   transform: (frame, index, count, v, ctx) => {
     const dir = v.direction === 'reverse' ? -1 : 1;
-    const phase = (frame / ctx.fps) * v.speed * dir;
+    const phase = ctx.easedPhase((frame / ctx.fps) * v.speed * dir);
     const ang = ((index - phase) / count) * Math.PI * 2;
 
     const x = Math.sin(ang) * v.radiusX;

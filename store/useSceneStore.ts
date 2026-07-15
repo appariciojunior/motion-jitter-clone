@@ -1,7 +1,6 @@
 import { create } from 'zustand';
-import { defaultsFor, getTemplate } from '@/templates';
-import { DEFAULT_EASING } from '@/lib/easing';
-import type { CubicBezier } from '@/lib/types';
+import { defaultsFor, easingFor } from '@/templates';
+import type { EasingSpec } from '@/lib/easing';
 
 // ---------- canvas dimension helpers ----------
 export const ASPECTS: Record<string, [number, number]> = {
@@ -53,13 +52,13 @@ export interface SceneState {
   // motion template
   activeTemplateId: string;
   values: Record<string, any>;
+  easing: EasingSpec;   // scene easing curve (seeded from the template default)
 
   // clock
   frame: number;
   fps: number;
-  timelineDuration: number; // composition/export length in seconds
+  duration: number; // seconds
   playing: boolean;
-  easing: CubicBezier;
 
   // canvas
   aspect: string;
@@ -79,13 +78,13 @@ export interface SceneState {
   // ---- actions ----
   setValue: (key: string, val: any) => void;
   setActiveTemplate: (id: string) => void;
+  setEasing: (easing: EasingSpec) => void;
+  resetValues: () => void;
   setFrame: (frame: number) => void;
   setPlaying: (p: boolean) => void;
   setFps: (fps: number) => void;
   setAspect: (aspect: string) => void;
-  setTimelineDuration: (d: number) => void;
-  setEasing: (curve: CubicBezier) => void;
-  resetTemplate: () => void;
+  setDuration: (d: number) => void;
   toggleSafeArea: () => void;
   setBackground: (patch: Partial<BackgroundSettings>) => void;
   setLogo: (patch: Partial<LogoSettings>) => void;
@@ -111,24 +110,18 @@ export interface SceneState {
 let _idc = 0;
 const nid = (prefix: string) => `${prefix}_${++_idc}`;
 
-const INITIAL_TEMPLATE = 'carousel01';
-const DEFAULT_TIMELINE_DURATION = 12;
+const INITIAL_TEMPLATE = 'carousel';
 const initDims = dimsFor('3:4');
-const initialValues = defaultsFor(INITIAL_TEMPLATE);
-const initialTemplate = getTemplate(INITIAL_TEMPLATE);
-const clampDuration = (value: any, fallback = 8) => Math.max(0.1, Number.isFinite(Number(value)) ? Number(value) : fallback);
-const clampFrameForDuration = (frame: number, duration: number, fps: number) =>
-  Math.min(frame, Math.max(0, Math.round(duration * fps) - 1));
 
 export const useSceneStore = create<SceneState>((set, get) => ({
   activeTemplateId: INITIAL_TEMPLATE,
-  values: initialValues,
+  values: defaultsFor(INITIAL_TEMPLATE),
+  easing: easingFor(INITIAL_TEMPLATE),
 
   frame: 0,
   fps: 30,
-  timelineDuration: DEFAULT_TIMELINE_DURATION,
+  duration: 8,
   playing: true, // autoplay loop by default
-  easing: initialTemplate.meta.easing ?? DEFAULT_EASING,
 
   aspect: '3:4',
   width: initDims.width,
@@ -142,29 +135,18 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   effects: [],
 
   setValue: (key, val) =>
-    set((s) => {
-      if (key !== 'duration') return { values: { ...s.values, [key]: val } };
-      const timelineDuration = clampDuration(val, s.timelineDuration);
-      return {
-        values: { ...s.values, [key]: timelineDuration },
-        timelineDuration,
-        frame: clampFrameForDuration(s.frame, timelineDuration, s.fps),
-      };
-    }),
+    set((s) => ({ values: { ...s.values, [key]: val } })),
 
-  // full reset on template switch: wipe bag, refill from declared defaults
+  // full reset on template switch: wipe bag, refill from declared defaults,
+  // and seed the scene easing from the template's default curve.
   setActiveTemplate: (id) =>
-    set(() => {
-      const values = defaultsFor(id);
-      const template = getTemplate(id);
-      return {
-        activeTemplateId: id,
-        values,
-        easing: template.meta.easing ?? DEFAULT_EASING,
-        timelineDuration: DEFAULT_TIMELINE_DURATION,
-        frame: 0,
-      };
-    }),
+    set(() => ({ activeTemplateId: id, values: defaultsFor(id), easing: easingFor(id), frame: 0 })),
+
+  setEasing: (easing) => set(() => ({ easing })),
+
+  // "Reset all values": restore the active template's declared defaults + easing.
+  resetValues: () =>
+    set((s) => ({ values: defaultsFor(s.activeTemplateId), easing: easingFor(s.activeTemplateId) })),
 
   setFrame: (frame) => set(() => ({ frame })),
   setPlaying: (p) => set(() => ({ playing: p })),
@@ -172,25 +154,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   setFps: (fps) => set(() => ({ fps })),
   setAspect: (aspect) =>
     set(() => ({ aspect, ...dimsFor(aspect) })),
-  setTimelineDuration: (value) => set((s) => {
-    const timelineDuration = clampDuration(value, s.timelineDuration);
-    return {
-      timelineDuration,
-      values: { ...s.values, duration: timelineDuration },
-      frame: clampFrameForDuration(s.frame, timelineDuration, s.fps),
-    };
-  }),
-  setEasing: (easing) => set(() => ({ easing: { ...easing } })),
-  resetTemplate: () => set((s) => {
-    const values = defaultsFor(s.activeTemplateId);
-    const template = getTemplate(s.activeTemplateId);
-    return {
-      values,
-      easing: template.meta.easing ?? DEFAULT_EASING,
-      timelineDuration: DEFAULT_TIMELINE_DURATION,
-      frame: 0,
-    };
-  }),
+  setDuration: (d) => set(() => ({ duration: d })),
   toggleSafeArea: () => set((s) => ({ safeArea: !s.safeArea })),
   setBackground: (patch) => set((s) => ({ background: { ...s.background, ...patch } })),
   setLogo: (patch) => set((s) => ({ logo: { ...s.logo, ...patch } })),
@@ -258,6 +222,6 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     })),
 
   get totalFrames() {
-    return Math.max(1, Math.round(get().timelineDuration * get().fps));
+    return Math.max(1, Math.round(get().duration * get().fps));
   },
 }));

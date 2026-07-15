@@ -1,8 +1,6 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { useAnimatedRemoval } from '@/lib/useAnimatedRemoval';
-import { useFlipList } from '@/lib/useFlipList';
 import { useSceneStore } from '@/store/useSceneStore';
 
 const EyeIcon = ({ off }: { off?: boolean }) => (
@@ -29,14 +27,8 @@ export default function AssetsPanel() {
   const inputRef = useRef<HTMLInputElement>(null);
   const slotInputRef = useRef<HTMLInputElement>(null);
   const slotTarget = useRef<number>(0);
-  const listRef = useRef<HTMLUListElement>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
-  const { isLeaving, requestRemoval } = useAnimatedRemoval(removeAsset);
-  const { snapshot } = useFlipList(
-    listRef,
-    assets.map((asset) => asset.id).join('|'),
-  );
 
   const ingest = (files: FileList | File[]) => {
     const items = Array.from(files)
@@ -78,7 +70,7 @@ export default function AssetsPanel() {
           {assets.length > 0 && <button className="link-btn" onClick={clearAssets}>Clear all</button>}
         </div>
 
-        {/* hidden picker for per-slot uploads */}
+        {/* hidden picker for empty-slot uploads */}
         <input
           ref={slotInputRef}
           type="file"
@@ -91,41 +83,29 @@ export default function AssetsPanel() {
           }}
         />
 
-        <ul className="asset-list" ref={listRef}>
+        <ul className="asset-list">
           {slots.map((a, i) =>
             a ? (
-              (() => {
-                const leaving = isLeaving(a.id);
-                return (
-                  <li
-                    key={a.id}
-                    data-flip-id={a.id}
-                    className={`asset-item ${dragIdx === i ? 'dragging' : ''} ${leaving ? 'leaving' : ''}`}
-                    draggable={!leaving}
-                    onDragStart={() => setDragIdx(i)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => {
-                      if (dragIdx !== null && dragIdx !== i && dragIdx < filled) {
-                        snapshot();
-                        reorderAssets(dragIdx, i);
-                      }
-                      setDragIdx(null);
-                    }}
-                    onDragEnd={() => setDragIdx(null)}
-                  >
-                    <span className="asset-idx">{i + 1}</span>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img className="asset-thumb" src={a.url} alt={a.name} onClick={() => openSlotPicker(i)} title="Replace" />
-                    <span className="asset-name" title={a.name}>{a.name}</span>
-                    <button className={`icon-btn ${a.visible ? '' : 'off'}`} title={a.visible ? 'Hide' : 'Show'} onClick={() => toggleAsset(a.id)}>
-                      <EyeIcon off={!a.visible} />
-                    </button>
-                    <button className="icon-btn" title="Remove" onClick={() => requestRemoval(a.id)}>
-                      <XIcon />
-                    </button>
-                  </li>
-                );
-              })()
+              <li
+                key={a.id}
+                className={`asset-item ${dragIdx === i ? 'dragging' : ''}`}
+                draggable
+                onDragStart={() => setDragIdx(i)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => { if (dragIdx !== null && dragIdx !== i && dragIdx < filled) reorderAssets(dragIdx, i); setDragIdx(null); }}
+                onDragEnd={() => setDragIdx(null)}
+              >
+                <span className="asset-idx">{i + 1}</span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="asset-thumb" src={a.url} alt={a.name} onClick={() => openSlotPicker(i)} title="Replace" />
+                <span className="asset-name" title={a.name}>{a.name}</span>
+                <button className={`icon-btn ${a.visible ? '' : 'off'}`} title={a.visible ? 'Hide' : 'Show'} onClick={() => toggleAsset(a.id)}>
+                  <EyeIcon off={!a.visible} />
+                </button>
+                <button className="icon-btn" title="Remove" onClick={() => removeAsset(a.id)}>
+                  <XIcon />
+                </button>
+              </li>
             ) : (
               <li key={`empty-${i}`} className="asset-item asset-empty" onClick={() => openSlotPicker(i)}>
                 <span className="asset-idx">{i + 1}</span>

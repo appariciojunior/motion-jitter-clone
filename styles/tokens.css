@@ -60,21 +60,7 @@
   --seg-pad: 3px;     /* segmented inset padding */
 
   /* ---- Motion ---- */
-  --motion-instant: 100ms;
-  --motion-fast: 150ms;
-  --motion-control: 200ms;
-  --motion-panel: 300ms;
-  --motion-structural: 420ms;
-
-  --ease-standard: cubic-bezier(.4, 0, .2, 1);
-  --ease-out: cubic-bezier(0, 0, .2, 1);
-  --ease-soft: cubic-bezier(.16, 1, .3, 1);
-  --ease-panel: cubic-bezier(.32, .72, .26, 1);
-
-  /* Backward-compatible shorthand used by the existing primitives. */
-  --t-fast: var(--motion-fast) var(--ease-standard);
-  --t-control: var(--motion-control) var(--ease-soft);
-  --t-panel: var(--motion-panel) var(--ease-panel);
+  --t-fast: 120ms;
 }
 
 :root[data-theme="light"] {

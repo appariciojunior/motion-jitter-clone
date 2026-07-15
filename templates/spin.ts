@@ -5,7 +5,7 @@ const BASE = 340;
 // Spin — one card (or a small fanned stack) rotating in place at centre.
 // Sway swaps continuous rotation for a pendulum.
 export const spin: Template = {
-  meta: { id: 'spin-01', name: 'Spin 01', group: 'Spin' },
+  meta: { id: 'spin-01', name: 'Spin 01', group: 'Spin', defaultEasing: { id: 'sweep' } },
 
   controls: [
     { key: 'direction',    label: 'Direction',     type: 'toggle', options: ['forward','reverse'], default: 'forward' },
@@ -20,7 +20,7 @@ export const spin: Template = {
 
   transform: (frame, index, count, v, ctx) => {
     const dir = v.direction === 'reverse' ? -1 : 1;
-    const t = (frame / ctx.fps) * v.speed * dir;
+    const t = ctx.easedPhase((frame / ctx.fps) * v.speed * dir);
 
     const base = v.sway === 'on'
       ? Math.sin(t * Math.PI * 2) * 0.4          // pendulum ±23°

@@ -7,7 +7,7 @@ const BASE = 340;
 // a scale pop or a directional drift to the outgoing card (per the reference
 // tool's Pacing / Effect / Drift controls).
 const flicker: Template = {
-  meta: { id: 'flicker-01', name: 'Flicker 01', group: 'Flicker' },
+  meta: { id: 'flicker-01', name: 'Flicker 01', group: 'Flicker', defaultEasing: { id: 'linear' } },
 
   controls: [
     { key: 'pacing',       label: 'Pacing',        type: 'toggle', options: ['equal','eased'], default: 'equal' },
@@ -22,7 +22,7 @@ const flicker: Template = {
   ],
 
   transform: (frame, index, count, v, ctx) => {
-    const phase = (frame / ctx.fps) * v.speed;
+    const phase = ctx.easedPhase((frame / ctx.fps) * v.speed);
 
     // lifecycle w ∈ [0, count): 0 = this card just became active
     const w = (((phase - index) % count) + count) % count;

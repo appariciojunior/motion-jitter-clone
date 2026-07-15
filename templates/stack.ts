@@ -7,7 +7,7 @@ const BASE = 340;
 // Stack — the carousel turned vertical: a conveyor of cards climbing (or
 // descending) through a featured centre slot. Slant shears the line diagonal.
 const stack: Template = {
-  meta: { id: 'stack-01', name: 'Stack 01', group: 'Stack' },
+  meta: { id: 'stack-01', name: 'Stack 01', group: 'Stack', defaultEasing: { id: 'smooth' } },
 
   controls: [
     { key: 'direction',    label: 'Direction',     type: 'toggle', options: ['forward','reverse'], default: 'forward' },
@@ -25,7 +25,7 @@ const stack: Template = {
 
   transform: (frame, index, count, v, ctx) => {
     const dir = v.direction === 'reverse' ? -1 : 1;
-    const phase = (frame / ctx.fps) * v.speed * dir;
+    const phase = ctx.easedPhase((frame / ctx.fps) * v.speed * dir);
     const sizeFactor = v.cardSize / BASE;
 
     const p = cardPath({ kind: 'line', index, count, phase, gap: 1, wrap: true });

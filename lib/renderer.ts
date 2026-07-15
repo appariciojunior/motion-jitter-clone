@@ -3,7 +3,7 @@ import { PixelateFilter } from 'pixi-filters';
 import { getTemplate } from '@/templates';
 import { getEffect } from '@/effects';
 import { useSceneStore, type SceneState } from '@/store/useSceneStore';
-import { layerTimingState } from '@/lib/timing';
+import { resolveEasing } from '@/lib/easing';
 
 // Reference base long-edge (px) shared with templates (carousel BASE = 340),
 // so control values read directly in on-screen pixels.
@@ -15,7 +15,6 @@ const PLACEHOLDER_FILL = 0x242424;
 const PLACEHOLDER_LABEL = 0x6a6a6a;
 
 interface Slot {
-  container: PIXI.Container;
   sprite: PIXI.Sprite;
   mask: PIXI.Graphics;
   label: PIXI.Text;
@@ -43,18 +42,16 @@ export class SceneRenderer {
   private logoSprite: PIXI.Sprite | null = null;
   private placeholder!: PIXI.Texture;
   private textureCache = new Map<string, PIXI.Texture>();
-  private texturePromises = new Map<string, Promise<PIXI.Texture | null>>();
   private slots: Slot[] = [];
   private ready = false;
 
-  private lastAssetsRef: SceneState['assets'] | null = null;
+  private lastAssetSig = '';
   private lastCountSig = -1;
-  private lastEffectsRef: SceneState['effects'] | null = null;
-  private lastOverlaySig = '';
+  private lastFxSig = '';
   private bgImageUrl = '';                        // last-loaded uploaded bg url
   private bgImageTex: PIXI.Texture | null = null;
 
-  constructor(private readonly invalidate: () => void = () => {}) {
+  constructor() {
     this.app = new PIXI.Application();
   }
 
@@ -101,26 +98,16 @@ export class SceneRenderer {
   private async loadTexture(url: string): Promise<PIXI.Texture | null> {
     const cached = this.textureCache.get(url);
     if (cached) return cached;
-    const pending = this.texturePromises.get(url);
-    if (pending) return pending;
-
-    const promise = (async () => {
-      try {
-        const img = new Image();
-        img.src = url;
-        await img.decode();
-        const tex = PIXI.Texture.from(img);
-        this.textureCache.set(url, tex);
-        return tex;
-      } catch {
-        return null; // unreadable/revoked URL — caller keeps the placeholder
-      } finally {
-        this.texturePromises.delete(url);
-      }
-    })();
-
-    this.texturePromises.set(url, promise);
-    return promise;
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const tex = PIXI.Texture.from(img);
+      this.textureCache.set(url, tex);
+      return tex;
+    } catch {
+      return null; // unreadable/revoked URL — caller keeps the placeholder
+    }
   }
 
   // Rebuild the sprite pool to match count; slot i binds to asset i (positional,
@@ -129,30 +116,31 @@ export class SceneRenderer {
     if (!this.ready) return;
     const s = useSceneStore.getState();
     const count = Math.max(1, Math.round(s.values.count ?? 6));
+    const assetSig = s.assets.map((a) => a.id + ':' + a.url + ':' + a.visible).join('|');
 
-    if (count === this.lastCountSig && s.assets === this.lastAssetsRef) return;
+    if (count === this.lastCountSig && assetSig === this.lastAssetSig) return;
     this.lastCountSig = count;
-    this.lastAssetsRef = s.assets;
+    this.lastAssetSig = assetSig;
 
     // grow / shrink pool
     while (this.slots.length < count) {
-      const container = new PIXI.Container();
       const sprite = new PIXI.Sprite(this.placeholder);
       sprite.anchor.set(0.5);
       const mask = new PIXI.Graphics();
+      sprite.addChild(mask);
       sprite.mask = mask;
       const label = new PIXI.Text({
         text: '',
         style: { fill: PLACEHOLDER_LABEL, fontSize: 130, fontWeight: '600', fontFamily: 'Inter, system-ui, sans-serif' },
       });
       label.anchor.set(0.5);
-      container.addChild(sprite, mask, label);
-      this.motion.addChild(container);
-      this.slots.push({ container, sprite, mask, label, texW: 480, texH: 600, cornerR: -1 });
+      sprite.addChild(label);
+      this.motion.addChild(sprite);
+      this.slots.push({ sprite, mask, label, texW: 480, texH: 600, cornerR: -1 });
     }
     while (this.slots.length > count) {
       const slot = this.slots.pop()!;
-      slot.container.destroy({ children: true });
+      slot.sprite.destroy({ children: true });
     }
 
     // assign textures — slot i ↔ asset i; missing/hidden → numbered placeholder
@@ -171,7 +159,6 @@ export class SceneRenderer {
           if (!tex || slot.sprite.destroyed) return; // slot may be gone by now
           slot.sprite.texture = tex;
           slot.texW = tex.width; slot.texH = tex.height; slot.cornerR = -1;
-          this.invalidate();
         });
       }
     });
@@ -190,9 +177,10 @@ export class SceneRenderer {
   // ---- effects ----
   private syncEffects() {
     const s = useSceneStore.getState();
-    if (s.effects === this.lastEffectsRef) return;
-    this.lastEffectsRef = s.effects;
     const active = s.effects.filter((e) => e.enabled);
+    const sig = active.map((e) => e.instanceId + ':' + e.effectId + ':' + JSON.stringify(e.values)).join('|');
+    if (sig === this.lastFxSig) return;
+    this.lastFxSig = sig;
 
     const filters: PIXI.Filter[] = [];
     for (const e of active) {
@@ -208,13 +196,6 @@ export class SceneRenderer {
   // ---- overlays ----
   private drawOverlays(s: SceneState) {
     const { width, height } = s;
-    const sig = [
-      width, height, s.safeArea,
-      s.background.color, s.background.gradient, s.background.color2,
-      s.logo.url, s.logo.position, s.logo.size,
-    ].join('|');
-    if (sig === this.lastOverlaySig) return;
-    this.lastOverlaySig = sig;
 
     // background
     this.bg.clear();
@@ -248,7 +229,6 @@ export class SceneRenderer {
         this.logoSprite.texture = tex;
         const scale = s.logo.size / Math.max(tex.width, tex.height);
         this.logoSprite.scale.set(scale);
-        this.invalidate();
       });
       const pad = 32;
       const half = s.logo.size / 2;
@@ -261,8 +241,8 @@ export class SceneRenderer {
     }
   }
 
-  // Image / card-reflected background. Called every frame (outside the overlay
-  // sig cache) so the 'card' source can follow the featured card's live position.
+  // Image / card-reflected background. Called after the motion loop so the
+  // 'card' source can follow the featured card's live position.
   private updateBackground(
     s: SceneState,
     featured: { tex: PIXI.Texture; x: number; y: number } | null,
@@ -276,7 +256,7 @@ export class SceneRenderer {
       if (bg.imageUrl && bg.imageUrl !== this.bgImageUrl) {
         this.bgImageUrl = bg.imageUrl;
         this.bgImageTex = null;
-        this.loadTexture(bg.imageUrl).then((t) => { if (t) { this.bgImageTex = t; this.invalidate(); } });
+        this.loadTexture(bg.imageUrl).then((t) => { if (t) this.bgImageTex = t; });
       }
       if (!bg.imageUrl) { this.bgImageUrl = ''; this.bgImageTex = null; }
       tex = this.bgImageTex;
@@ -291,7 +271,8 @@ export class SceneRenderer {
     this.bgSprite.texture = tex;
     const cover = Math.max(width / tex.width, height / tex.height) * 1.4; // headroom for drift
     this.bgSprite.scale.set(cover);
-    const k = follow ? 0.18 : 0; // 'card' bg drifts with the featured card
+    // 'card' bg drifts with the featured card so the background reacts to motion
+    const k = follow ? 0.18 : 0;
     this.bgSprite.position.set(width / 2 + (featured?.x ?? 0) * k, height / 2 + (featured?.y ?? 0) * k);
     this.bgBlur.strength = Math.max(0, bg.blur);
   }
@@ -311,10 +292,16 @@ export class SceneRenderer {
 
     const template = getTemplate(s.activeTemplateId);
     const count = this.slots.length;
-    const motionDuration = Number(s.values.duration ?? s.timelineDuration);
-    const cycles = Number(s.values.cycles ?? 1);
-    const delay = Number(s.values.delay ?? 0);
-    const stagger = Number(s.values.stagger ?? 0);
+
+    // Resolve the scene easing once per frame; shape cyclic phases so each
+    // unit step follows the curve while the loop stays seamless (ease(0)=0,
+    // ease(1)=1 ⇒ continuous at every integer boundary).
+    const ease = resolveEasing(s.easing);
+    const easedPhase = (phase: number) => {
+      const base = Math.floor(phase);
+      return base + ease(phase - base);
+    };
+    const ctx = { fps: s.fps, width: s.width, height: s.height, ease, easedPhase };
 
     // Track the featured (front-most) card so a 'card' background can reflect it.
     let featured: { tex: PIXI.Texture; x: number; y: number } | null = null;
@@ -322,34 +309,14 @@ export class SceneRenderer {
 
     for (let i = 0; i < count; i++) {
       const slot = this.slots[i];
-      const timing = layerTimingState({
-        frame,
-        fps: s.fps,
-        duration: motionDuration,
-        cycles,
-        delay,
-        stagger,
-        group: template.meta.group,
-        index: i,
-        count,
-        direction: s.values.direction,
-        easing: s.easing,
-      });
-      const ctx = {
-        fps: s.fps,
-        width: s.width,
-        height: s.height,
-        elapsed: timing.elapsed,
-        progress: timing.progress,
-      };
-      const t = template.transform(timing.localFrame, i, count, s.values, ctx);
+      const t = template.transform(frame, i, count, s.values, ctx);
       const norm = SPRITE_BASE / Math.max(slot.texW, slot.texH);
-      slot.container.position.set(t.x, t.y);
-      slot.container.scale.set(norm * t.scale);
-      slot.container.rotation = t.rotation;
-      slot.container.alpha = t.alpha;
-      slot.container.skew.set(t.skewX ?? 0, t.skewY ?? 0);
-      slot.container.zIndex = t.depth * 1000;
+      slot.sprite.position.set(t.x, t.y);
+      slot.sprite.scale.set(norm * t.scale * (t.scaleX ?? 1), norm * t.scale * (t.scaleY ?? 1));
+      slot.sprite.rotation = t.rotation;
+      slot.sprite.alpha = t.alpha;
+      slot.sprite.skew.set(t.skewX ?? 0, t.skewY ?? 0);
+      slot.sprite.zIndex = t.depth * 1000 + i; // stable tiebreak
       this.applyMask(slot, s.values.cornerRadius ?? 0);
 
       if (t.depth > featuredDepth && t.alpha > 0.15) {

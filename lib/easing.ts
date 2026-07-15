@@ -1,81 +1,170 @@
-import type { CubicBezier } from './types';
+// ============================================================
+//  EASING ENGINE
+//  A shared library of easing curves — cubic-bezier presets plus
+//  physics curves (bounce / spring / wiggle / overshoot) — used to
+//  reshape how every template advances through its motion cycle.
+//
+//  A curve is a pure map t∈[0,1] → y, with f(0)=0 and f(1)=1 so it
+//  can be dropped into a seamless loop without a discontinuity at the
+//  cycle boundary (see ctx.easedPhase in the renderer).
+// ============================================================
 
-export interface EasingPreset extends CubicBezier { name: string }
+export type Bezier = [number, number, number, number]; // x1,y1,x2,y2
 
+// What the store persists: either a named preset, or a custom bezier.
+export interface EasingSpec {
+  id: string;               // preset id, or 'custom'
+  bezier?: Bezier;          // present when id === 'custom'
+}
+
+export interface EasingPreset {
+  id: string;
+  label: string;
+  group: 'signature' | 'standard' | 'physics';
+  bezier?: Bezier;          // bezier-backed presets (editable in the curve editor)
+  fn?: (t: number) => number; // physics curves (no bezier handles)
+}
+
+// ---------- cubic-bezier evaluator (CSS timing-function maths) ----------
+// Given the two control points (endpoints fixed at 0,0 and 1,1), returns a
+// function x→y solving for the parametric t via Newton-Raphson + bisection.
+export function cubicBezier(x1: number, y1: number, x2: number, y2: number): (x: number) => number {
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+  const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+
+  const sampleX = (t: number) => ((ax * t + bx) * t + cx) * t;
+  const sampleY = (t: number) => ((ay * t + by) * t + cy) * t;
+  const sampleDX = (t: number) => (3 * ax * t + 2 * bx) * t + cx;
+
+  const solveX = (x: number) => {
+    let t = x;
+    for (let i = 0; i < 8; i++) {
+      const dx = sampleX(t) - x;
+      if (Math.abs(dx) < 1e-6) return t;
+      const d = sampleDX(t);
+      if (Math.abs(d) < 1e-6) break;
+      t -= dx / d;
+    }
+    // bisection fallback
+    let lo = 0, hi = 1;
+    t = x;
+    while (lo < hi) {
+      const xm = sampleX(t);
+      if (Math.abs(xm - x) < 1e-6) return t;
+      if (x > xm) lo = t; else hi = t;
+      t = (lo + hi) / 2;
+    }
+    return t;
+  };
+
+  return (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : sampleY(solveX(x)));
+}
+
+// ---------- physics curves ----------
+// easeOutBounce — the classic three-bounce settle.
+function bounce(t: number): number {
+  const n1 = 7.5625, d1 = 2.75;
+  if (t < 1 / d1) return n1 * t * t;
+  if (t < 2 / d1) { t -= 1.5 / d1; return n1 * t * t + 0.75; }
+  if (t < 2.5 / d1) { t -= 2.25 / d1; return n1 * t * t + 0.9375; }
+  t -= 2.625 / d1; return n1 * t * t + 0.984375;
+}
+
+// Damped harmonic settle, normalized so f(0)=0 and f(1)=1 exactly.
+function springRaw(t: number): number {
+  return 1 - Math.exp(-6 * t) * Math.cos(3 * Math.PI * t);
+}
+const SPRING_0 = springRaw(0), SPRING_1 = springRaw(1);
+function spring(t: number): number {
+  return (springRaw(t) - SPRING_0) / (SPRING_1 - SPRING_0);
+}
+
+// Wobble around the linear path, resolving exactly on 0 and 1.
+function wiggle(t: number): number {
+  return t + Math.sin(t * Math.PI * 6) * 0.12;
+}
+
+// easeOutBack — shoots past the target then eases back.
+function overshoot(t: number): number {
+  const c1 = 1.70158, c3 = c1 + 1;
+  const u = t - 1;
+  return 1 + c3 * u * u * u + c1 * u * u;
+}
+
+// ---------- preset registry ----------
+// Signature presets and their bezier values are lifted from the reference tool.
 export const EASING_PRESETS: EasingPreset[] = [
-  { name: 'Flow', h1x: 0.86, h1y: 0.14, h2x: 0.14, h2y: 0.86 },
-  { name: 'Glide', h1x: 0.33, h1y: 0, h2x: 0, h2y: 1 },
-  { name: 'Linear', h1x: 0.25, h1y: 0.25, h2x: 0.75, h2y: 0.75 },
-  { name: 'Ease', h1x: 0.87, h1y: 0, h2x: 0.13, h2y: 1 },
-  { name: 'Sweep', h1x: 0.7, h1y: 0.101, h2x: 0.3, h2y: 0.899 },
-  { name: 'Smooth', h1x: 0.76, h1y: 0, h2x: 0.24, h2y: 1 },
-  { name: 'Settle', h1x: 0.8, h1y: 0.27, h2x: 0.2, h2y: 0.75 },
-  { name: 'Ease Out', h1x: 0.16, h1y: 1, h2x: 0.3, h2y: 1 },
-  { name: 'Snap', h1x: 1, h1y: 0, h2x: 0, h2y: 1 },
-  { name: 'Ease In', h1x: 0.42, h1y: 0, h2x: 1, h2y: 1 },
-  { name: 'Ease In Out', h1x: 0.42, h1y: 0, h2x: 0.58, h2y: 1 },
-  { name: 'Flip', h1x: 0.333, h1y: 0, h2x: 0.571, h2y: 1 },
-  { name: 'Quad In', h1x: 0.55, h1y: 0.085, h2x: 0.68, h2y: 0.53 },
-  { name: 'Quad Out', h1x: 0.25, h1y: 0.46, h2x: 0.45, h2y: 0.94 },
-  { name: 'Quad In Out', h1x: 0.45, h1y: 0.03, h2x: 0.55, h2y: 0.97 },
-  { name: 'Cubic In', h1x: 0.55, h1y: 0.055, h2x: 0.675, h2y: 0.19 },
-  { name: 'Cubic Out', h1x: 0.215, h1y: 0.61, h2x: 0.355, h2y: 1 },
-  { name: 'Cubic In Out', h1x: 0.645, h1y: 0.045, h2x: 0.355, h2y: 1 },
-  { name: 'Quart In', h1x: 0.895, h1y: 0.03, h2x: 0.685, h2y: 0.22 },
-  { name: 'Quart Out', h1x: 0.165, h1y: 0.84, h2x: 0.44, h2y: 1 },
-  { name: 'Quart In Out', h1x: 0.77, h1y: 0, h2x: 0.175, h2y: 1 },
-  { name: 'Expo In', h1x: 0.95, h1y: 0.05, h2x: 0.795, h2y: 0.035 },
-  { name: 'Expo Out', h1x: 0.19, h1y: 1, h2x: 0.22, h2y: 1 },
-  { name: 'Expo In Out', h1x: 1, h1y: 0, h2x: 0, h2y: 1 },
-  { name: 'Sine In', h1x: 0.47, h1y: 0, h2x: 0.745, h2y: 0.715 },
-  { name: 'Sine Out', h1x: 0.39, h1y: 0.575, h2x: 0.565, h2y: 1 },
-  { name: 'Sine In Out', h1x: 0.445, h1y: 0.05, h2x: 0.55, h2y: 0.95 },
+  // Signature (the named curves shown by default)
+  { id: 'flow',   label: 'Flow',   group: 'signature', bezier: [0.86, 0.14, 0.14, 0.86] },
+  { id: 'glide',  label: 'Glide',  group: 'signature', bezier: [0.33, 0.00, 0.00, 1.00] },
+  { id: 'linear', label: 'Linear', group: 'signature', bezier: [0.25, 0.25, 0.75, 0.75] },
+  { id: 'ease',   label: 'Ease',   group: 'signature', bezier: [0.87, 0.00, 0.13, 1.00] },
+  { id: 'sweep',  label: 'Sweep',  group: 'signature', bezier: [0.70, 0.10, 0.30, 0.90] },
+  { id: 'smooth', label: 'Smooth', group: 'signature', bezier: [0.76, 0.00, 0.24, 1.00] },
+  { id: 'flip',   label: 'Flip',   group: 'signature', bezier: [0.33, 0.00, 0.57, 1.00] },
+
+  // Standard in / out / in-out families
+  { id: 'sineIn',    label: 'Sine In',     group: 'standard', bezier: [0.12, 0.00, 0.39, 0.00] },
+  { id: 'sineOut',   label: 'Sine Out',    group: 'standard', bezier: [0.61, 1.00, 0.88, 1.00] },
+  { id: 'sineInOut', label: 'Sine In-Out', group: 'standard', bezier: [0.37, 0.00, 0.63, 1.00] },
+  { id: 'quadIn',    label: 'Quad In',     group: 'standard', bezier: [0.11, 0.00, 0.50, 0.00] },
+  { id: 'quadOut',   label: 'Quad Out',    group: 'standard', bezier: [0.50, 1.00, 0.89, 1.00] },
+  { id: 'quadInOut', label: 'Quad In-Out', group: 'standard', bezier: [0.45, 0.00, 0.55, 1.00] },
+  { id: 'cubicIn',    label: 'Cubic In',     group: 'standard', bezier: [0.32, 0.00, 0.67, 0.00] },
+  { id: 'cubicOut',   label: 'Cubic Out',    group: 'standard', bezier: [0.33, 1.00, 0.68, 1.00] },
+  { id: 'cubicInOut', label: 'Cubic In-Out', group: 'standard', bezier: [0.65, 0.00, 0.35, 1.00] },
+  { id: 'quartIn',    label: 'Quart In',     group: 'standard', bezier: [0.50, 0.00, 0.75, 0.00] },
+  { id: 'quartOut',   label: 'Quart Out',    group: 'standard', bezier: [0.25, 1.00, 0.50, 1.00] },
+  { id: 'quartInOut', label: 'Quart In-Out', group: 'standard', bezier: [0.76, 0.00, 0.24, 1.00] },
+  { id: 'expoIn',    label: 'Expo In',     group: 'standard', bezier: [0.70, 0.00, 0.84, 0.00] },
+  { id: 'expoOut',   label: 'Expo Out',    group: 'standard', bezier: [0.16, 1.00, 0.30, 1.00] },
+  { id: 'expoInOut', label: 'Expo In-Out', group: 'standard', bezier: [0.87, 0.00, 0.13, 1.00] },
+
+  // Physics (no bezier handles — sampled directly)
+  { id: 'bounce',    label: 'Bounce',    group: 'physics', fn: bounce },
+  { id: 'spring',    label: 'Spring',    group: 'physics', fn: spring },
+  { id: 'wiggle',    label: 'Wiggle',    group: 'physics', fn: wiggle },
+  { id: 'overshoot', label: 'Overshoot', group: 'physics', fn: overshoot },
 ];
 
-export const DEFAULT_EASING: CubicBezier = EASING_PRESETS[0];
+export const EASING_MAP: Record<string, EasingPreset> = Object.fromEntries(
+  EASING_PRESETS.map((p) => [p.id, p])
+);
 
-export function cubicBezierAt(x: number, curve: CubicBezier) {
-  if (x <= 0) return 0;
-  if (x >= 1) return 1;
-  let t = x;
-  for (let i = 0; i < 12; i++) {
-    const omt = 1 - t;
-    const bx = 3 * omt * omt * t * curve.h1x + 3 * omt * t * t * curve.h2x + t * t * t;
-    const derivative = 3 * omt * omt * curve.h1x
-      + 6 * omt * t * (curve.h2x - curve.h1x)
-      + 3 * t * t * (1 - curve.h2x);
-    if (Math.abs(derivative) < 1e-7) break;
-    t = Math.max(0, Math.min(1, t - (bx - x) / derivative));
+export const DEFAULT_EASING: EasingSpec = { id: 'linear' };
+
+// Resolve a stored spec into an evaluatable curve.
+export function resolveEasing(spec: EasingSpec | undefined): (t: number) => number {
+  if (!spec) return (t) => t;
+  if (spec.id === 'custom' && spec.bezier) {
+    const [a, b, c, d] = spec.bezier;
+    return cubicBezier(a, b, c, d);
   }
-  const omt = 1 - t;
-  return 3 * omt * omt * t * curve.h1y + 3 * omt * t * t * curve.h2y + t * t * t;
+  const preset = EASING_MAP[spec.id];
+  if (!preset) return (t) => t;
+  if (preset.fn) return preset.fn;
+  if (preset.bezier) {
+    const [a, b, c, d] = preset.bezier;
+    return cubicBezier(a, b, c, d);
+  }
+  return (t) => t;
 }
 
-export function timedProgress(
-  frame: number,
-  fps: number,
-  duration: number,
-  cycles: number,
-  delay: number,
-  easing: CubicBezier,
-) {
-  const elapsed = frame / Math.max(1, fps);
-  if (elapsed <= delay) return 0;
-  // Delay shifts the start of the motion; it is not part of the active
-  // duration. Subtracting it here made delayed animations run faster.
-  const activeDuration = Math.max(0.001, duration);
-  const raw = ((elapsed - delay) / activeDuration) * Math.max(0.001, cycles);
-  const whole = Math.floor(raw);
-  const fractional = raw - whole;
-  return whole + cubicBezierAt(fractional, easing);
+// The bezier control points a spec exposes to the editor, or null for a
+// physics curve (which has no draggable handles).
+export function easingBezier(spec: EasingSpec | undefined): Bezier | null {
+  if (!spec) return null;
+  if (spec.id === 'custom') return spec.bezier ?? null;
+  const preset = EASING_MAP[spec.id];
+  return preset?.bezier ?? null;
 }
 
-export function easingPresetName(curve: CubicBezier) {
-  const epsilon = 0.0005;
-  return EASING_PRESETS.find((preset) =>
-    Math.abs(preset.h1x - curve.h1x) < epsilon
-    && Math.abs(preset.h1y - curve.h1y) < epsilon
-    && Math.abs(preset.h2x - curve.h2x) < epsilon
-    && Math.abs(preset.h2y - curve.h2y) < epsilon
-  )?.name ?? 'Custom';
+// Sample a curve into [x,y] points for drawing (x linear across [0,1]).
+export function sampleEasing(fn: (t: number) => number, n = 48): [number, number][] {
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= n; i++) {
+    const x = i / n;
+    pts.push([x, fn(x)]);
+  }
+  return pts;
 }

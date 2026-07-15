@@ -33,36 +33,36 @@ Layers (assets → Pixi sprites, slots in order)
 
 Principles: one live state read every frame · templates fully self-declare
 their controls · full value reset on template switch · fixed 8-type control
-vocabulary.
+vocabulary · shared `cardPath` helper (line / arc / ring / zwall) · every
+template ships a default easing curve (`lib/easing.ts`).
 
-## Templates (189 across 25 families)
+## Motion templates
 
-Carousel, Orbit, Stack, 3D, Wheel, Field, Wipe, Stories, Spin, Flicker,
-Globe, Carousel 3D, Grid, Spiral, Tour, Magazine, Gravity, Parallax, Deck,
-Flip, Marquee, Scale, Proximity, Frames, and Blank. The verified preset values
-and per-preset control schemas live in `templates/catalog.generated.json`; the
-family motion implementations live in `templates/catalog.ts`.
+25 families in `templates/` — Carousel, Orbit, Stack, 3D, Wheel, Field, Wipe,
+Stories, Spin, Flicker, Globe, Carousel 3D, Grid, Spiral, Tour, Magazine,
+Gravity, Parallax, Deck, Flip, Marquee, Scale, Proximity, Frames, and a Blank
+canvas. Each family is one file; variants are preset bundles over the same pure
+transform (`templates/variant.ts`).
 
-Scene timing includes cycles, duration, delay, and all 27 built-in cubic-bezier
-easing presets, with editable handles for custom curves.
+**Adding a motion** = one file: declare controls, compute `phase` (route it
+through `ctx.easedPhase` to inherit the scene's easing curve), map controls onto
+scale/alpha/rotation/depth, register in `templates/index.ts`. The control panel,
+easing block, thumbnail, and export pick it up automatically. Same for effects
+(`effects/`).
 
-**Adding a motion** = add its preset/schema data, provide a family transform in
-`templates/catalog.ts`, and register the family mapping there. The control
-panel, thumbnail, live preview, and export pick it up automatically. Effects
-remain self-contained in `effects/`.
+## Easing
 
-## Canvas & assets
-
-- **FPS** 30 or 60 · aspect presets · safe-area guide.
-- **Background** — Color (solid/gradient), Image (upload + blur), or From card
-  (a blurred reflection of the featured card that moves with the animation).
-- **Assets** — one slot per layer, linked 1:1 to the template's Count; each
-  slot binds positionally to a layer.
+Every template carries a cubic-bezier easing curve editable in the Easing block
+(`components/EasingPanel.tsx`). The preset library (`lib/easing.ts`) covers the
+signature curves (Flow, Glide, Linear, Ease, Sweep, Smooth, Flip), the standard
+Sine/Quad/Cubic/Quart/Expo families, physics curves (Bounce, Spring, Wiggle,
+Overshoot), and hand-dragged custom beziers. The renderer resolves the curve
+once per frame and reshapes each motion's cyclic phase while keeping loops
+seamless.
 
 ## Design system
 
 Neutral-grey token set (`styles/tokens.css`): `#171717` cards (r14) on
 `#0d0d0d`, `#232323` tracks, `#2d2d2d` thumbs, 13px/#ccc labels, 10px/1.5px
 eyebrows, value-inside-track sliders, dashed-ruler timeline with a playhead
-chip. `design-audit.png` is a 2× full-quality capture for auditing typography
-and spacing.
+chip. Light theme via `:root[data-theme="light"]`.

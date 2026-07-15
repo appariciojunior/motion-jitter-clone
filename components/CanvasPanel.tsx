@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { useSceneStore, ASPECTS } from '@/store/useSceneStore';
 import { ControlRow } from './Controls';
 
@@ -13,30 +13,15 @@ const BG_SOURCES: { id: 'color' | 'image' | 'card'; label: string }[] = [
 
 function Collapsible({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
-  const panelId = useId();
   return (
     <div className="collapsible">
-      <button
-        className={`collapsible-head ${open ? 'open' : ''}`}
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-controls={panelId}
-      >
+      <button className={`collapsible-head ${open ? 'open' : ''}`} onClick={() => setOpen((o) => !o)}>
         <span className="c-label">{title}</span>
         <span className="chev">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3.5 2L7 5l-3.5 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </span>
       </button>
-      <div className={`collapsible-grid ${open ? 'open' : ''}`}>
-        <div
-          id={panelId}
-          className="collapsible-clip"
-          aria-hidden={!open}
-          inert={!open}
-        >
-          <div className="collapsible-body">{children}</div>
-        </div>
-      </div>
+      {open && <div className="collapsible-body">{children}</div>}
     </div>
   );
 }

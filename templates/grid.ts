@@ -5,7 +5,7 @@ const TEX_RATIO = 480 / 600; // placeholder/card width:height
 
 // Grid — a static lattice of cards with a travelling scale pulse.
 export const grid: Template = {
-  meta: { id: 'grid-01', name: 'Grid 01', group: 'Grid' },
+  meta: { id: 'grid-01', name: 'Grid 01', group: 'Grid', defaultEasing: { id: 'glide' } },
 
   controls: [
     { key: 'count',        label: 'Count',         type: 'slider', min: 2, max: 12, step: 1,   default: 9 },
@@ -33,7 +33,7 @@ export const grid: Template = {
     const y = (row - (rows - 1) / 2) * spacingY;
 
     // travelling wave: diagonal phase offset per cell
-    const t = (frame / ctx.fps) * v.speed;
+    const t = ctx.easedPhase((frame / ctx.fps) * v.speed);
     const wave = Math.sin((t + (col + row) * 0.35) * Math.PI * 2);
     const scale = sizeFactor * (1 + (v.pulse / 100) * 0.5 * wave);
 
