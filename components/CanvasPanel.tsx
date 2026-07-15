@@ -4,7 +4,12 @@ import { useState } from 'react';
 import { useSceneStore, ASPECTS } from '@/store/useSceneStore';
 import { ControlRow } from './Controls';
 
-const FPS_OPTIONS = [15, 25, 30, 60];
+const FPS_OPTIONS = [30, 60];
+const BG_SOURCES: { id: 'color' | 'image' | 'card'; label: string }[] = [
+  { id: 'color', label: 'Color' },
+  { id: 'image', label: 'Image' },
+  { id: 'card', label: 'From card' },
+];
 
 function Collapsible({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -32,8 +37,6 @@ export default function CanvasPanel() {
   const setBackground = useSceneStore((s) => s.setBackground);
   const logo = useSceneStore((s) => s.logo);
   const setLogo = useSceneStore((s) => s.setLogo);
-  const text = useSceneStore((s) => s.text);
-  const setText = useSceneStore((s) => s.setText);
   const setAudioUrl = useSceneStore((s) => s.setAudioUrl);
   const audioUrl = useSceneStore((s) => s.audioUrl);
 
@@ -71,16 +74,49 @@ export default function CanvasPanel() {
       <div className="hairline" />
       <div className="section-body" style={{ paddingTop: 4 }}>
         <Collapsible title="Background">
-          <ControlRow def={{ key: 'bgc', label: 'Colour', type: 'color', default: '' }} value={background.color} onChange={(v) => setBackground({ color: v })} />
           <div className="ctl-row">
-            <label className="ctl-label">Gradient</label>
-            <div className="segmented">
-              <button className={`seg ${!background.gradient ? 'active' : ''}`} onClick={() => setBackground({ gradient: false })}>Off</button>
-              <button className={`seg ${background.gradient ? 'active' : ''}`} onClick={() => setBackground({ gradient: true })}>On</button>
+            <label className="ctl-label">Source</label>
+            <div className="pills">
+              {BG_SOURCES.map((src) => (
+                <button key={src.id} className={`pill ${background.source === src.id ? 'active' : ''}`} onClick={() => setBackground({ source: src.id })}>{src.label}</button>
+              ))}
             </div>
           </div>
-          {background.gradient && (
-            <ControlRow def={{ key: 'bgc2', label: 'Colour 2', type: 'color', default: '' }} value={background.color2} onChange={(v) => setBackground({ color2: v })} />
+
+          {background.source === 'color' && (
+            <>
+              <ControlRow def={{ key: 'bgc', label: 'Colour', type: 'color', default: '' }} value={background.color} onChange={(v) => setBackground({ color: v })} />
+              <div className="ctl-row">
+                <label className="ctl-label">Gradient</label>
+                <div className="segmented">
+                  <button className={`seg ${!background.gradient ? 'active' : ''}`} onClick={() => setBackground({ gradient: false })}>Off</button>
+                  <button className={`seg ${background.gradient ? 'active' : ''}`} onClick={() => setBackground({ gradient: true })}>On</button>
+                </div>
+              </div>
+              {background.gradient && (
+                <ControlRow def={{ key: 'bgc2', label: 'Colour 2', type: 'color', default: '' }} value={background.color2} onChange={(v) => setBackground({ color2: v })} />
+              )}
+            </>
+          )}
+
+          {background.source === 'image' && (
+            <>
+              <div className="ctl-row">
+                <label className="ctl-label">Image</label>
+                <label className="upload">
+                  <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) setBackground({ imageUrl: URL.createObjectURL(f) }); }} />
+                  <span>{background.imageUrl ? 'Replace…' : 'Upload…'}</span>
+                </label>
+              </div>
+              <ControlRow def={{ key: 'bgblur', label: 'Blur', type: 'slider', min: 0, max: 100, step: 1, default: 28 }} value={background.blur} onChange={(v) => setBackground({ blur: Number(v) })} />
+            </>
+          )}
+
+          {background.source === 'card' && (
+            <>
+              <div className="ctl-hint">Reflects the featured card — the background moves with the animation.</div>
+              <ControlRow def={{ key: 'bgblur', label: 'Blur', type: 'slider', min: 0, max: 100, step: 1, default: 28 }} value={background.blur} onChange={(v) => setBackground({ blur: Number(v) })} />
+            </>
           )}
         </Collapsible>
 
@@ -100,19 +136,6 @@ export default function CanvasPanel() {
               ))}
             </div>
           </div>
-        </Collapsible>
-
-        <Collapsible title="Text">
-          <ControlRow def={{ key: 'txt', label: 'Content', type: 'text', default: '' }} value={text.content} onChange={(v) => setText({ content: v })} />
-          <div className="ctl-row">
-            <label className="ctl-label">Position</label>
-            <div className="pills">
-              {(['top', 'center', 'bottom'] as const).map((p) => (
-                <button key={p} className={`pill ${text.position === p ? 'active' : ''}`} onClick={() => setText({ position: p })}>{p}</button>
-              ))}
-            </div>
-          </div>
-          <ControlRow def={{ key: 'txtc', label: 'Colour', type: 'color', default: '' }} value={text.color} onChange={(v) => setText({ color: v })} />
         </Collapsible>
 
         <Collapsible title="Audio">

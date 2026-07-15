@@ -17,12 +17,16 @@ const XIcon = () => (
 
 export default function AssetsPanel() {
   const assets = useSceneStore((s) => s.assets);
+  const count = useSceneStore((s) => Math.max(1, Math.round(s.values.count ?? 1)));
   const addAssets = useSceneStore((s) => s.addAssets);
+  const replaceAssetAt = useSceneStore((s) => s.replaceAssetAt);
   const removeAsset = useSceneStore((s) => s.removeAsset);
   const toggleAsset = useSceneStore((s) => s.toggleAsset);
   const reorderAssets = useSceneStore((s) => s.reorderAssets);
   const clearAssets = useSceneStore((s) => s.clearAssets);
   const inputRef = useRef<HTMLInputElement>(null);
+  const slotInputRef = useRef<HTMLInputElement>(null);
+  const slotTarget = useRef<number>(0);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
 
@@ -33,10 +37,20 @@ export default function AssetsPanel() {
     if (items.length) addAssets(items);
   };
 
+  const openSlotPicker = (index: number) => {
+    slotTarget.current = index;
+    slotInputRef.current?.click();
+  };
+
+  // The list is sized by the template's `count` — one row per layer slot.
+  const filled = Math.min(assets.length, count);
+  const slots = Array.from({ length: count }, (_, i) => assets[i] ?? null);
+
   return (
     <>
       <div className="section-head">
         <span className="eyebrow">Assets</span>
+        <span className="badge">{filled}/{count}</span>
       </div>
       <div className="section-body">
         <div
@@ -46,41 +60,62 @@ export default function AssetsPanel() {
           onDragLeave={() => setDropActive(false)}
           onDrop={(e) => { e.preventDefault(); setDropActive(false); ingest(e.dataTransfer.files); }}
         >
-          Drop images or click to upload
+          Drop images or click to fill {count} {count === 1 ? 'slot' : 'slots'}
           <input ref={inputRef} type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && ingest(e.target.files)} />
         </div>
 
-        {assets.length > 0 && (
-          <div className="asset-meta">
-            <span>{assets.length} {assets.length === 1 ? 'Asset' : 'Assets'}</span>
-            <span className="spacer" />
-            <button className="link-btn" onClick={clearAssets}>Clear all</button>
-          </div>
-        )}
+        <div className="asset-meta">
+          <span>{count} {count === 1 ? 'slot' : 'slots'} · linked to Count</span>
+          <span className="spacer" />
+          {assets.length > 0 && <button className="link-btn" onClick={clearAssets}>Clear all</button>}
+        </div>
+
+        {/* hidden picker for empty-slot uploads */}
+        <input
+          ref={slotInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) replaceAssetAt(slotTarget.current, { name: f.name, url: URL.createObjectURL(f) });
+            e.target.value = '';
+          }}
+        />
 
         <ul className="asset-list">
-          {assets.map((a, i) => (
-            <li
-              key={a.id}
-              className={`asset-item ${dragIdx === i ? 'dragging' : ''}`}
-              draggable
-              onDragStart={() => setDragIdx(i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => { if (dragIdx !== null && dragIdx !== i) reorderAssets(dragIdx, i); setDragIdx(null); }}
-              onDragEnd={() => setDragIdx(null)}
-            >
-              <span className="asset-idx">{i + 1}</span>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="asset-thumb" src={a.url} alt={a.name} />
-              <span className="asset-name" title={a.name}>{a.name}</span>
-              <button className={`icon-btn ${a.visible ? '' : 'off'}`} title={a.visible ? 'Hide' : 'Show'} onClick={() => toggleAsset(a.id)}>
-                <EyeIcon off={!a.visible} />
-              </button>
-              <button className="icon-btn" title="Remove" onClick={() => removeAsset(a.id)}>
-                <XIcon />
-              </button>
-            </li>
-          ))}
+          {slots.map((a, i) =>
+            a ? (
+              <li
+                key={a.id}
+                className={`asset-item ${dragIdx === i ? 'dragging' : ''}`}
+                draggable
+                onDragStart={() => setDragIdx(i)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => { if (dragIdx !== null && dragIdx !== i && dragIdx < filled) reorderAssets(dragIdx, i); setDragIdx(null); }}
+                onDragEnd={() => setDragIdx(null)}
+              >
+                <span className="asset-idx">{i + 1}</span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="asset-thumb" src={a.url} alt={a.name} onClick={() => openSlotPicker(i)} title="Replace" />
+                <span className="asset-name" title={a.name}>{a.name}</span>
+                <button className={`icon-btn ${a.visible ? '' : 'off'}`} title={a.visible ? 'Hide' : 'Show'} onClick={() => toggleAsset(a.id)}>
+                  <EyeIcon off={!a.visible} />
+                </button>
+                <button className="icon-btn" title="Remove" onClick={() => removeAsset(a.id)}>
+                  <XIcon />
+                </button>
+              </li>
+            ) : (
+              <li key={`empty-${i}`} className="asset-item asset-empty" onClick={() => openSlotPicker(i)}>
+                <span className="asset-idx">{i + 1}</span>
+                <span className="asset-thumb asset-thumb-empty">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                </span>
+                <span className="asset-name asset-name-empty">Empty slot — add image</span>
+              </li>
+            )
+          )}
         </ul>
       </div>
     </>

@@ -73,6 +73,7 @@ input[type=range] { -webkit-appearance: none; appearance: none; background: none
   display: flex; flex-direction: column; gap: var(--gap-row);
 }
 .hairline { height: 1px; background: var(--line); margin: 0 var(--pad-sect); flex: 0 0 auto; }
+.ctl-hint { font-size: var(--fs-ui); line-height: 1.4; color: var(--fg-faint); }
 .badge {
   font-size: var(--fs-ui); color: var(--fg-label); background: var(--card-inset);
   border-radius: var(--r-seg); padding: 3px 10px; font-weight: 400;
@@ -327,6 +328,13 @@ select.field { padding-right: 26px; }
   background: var(--frame); border: 1px solid var(--line);
 }
 .asset-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-ui); color: var(--fg-label); }
+.asset-item.asset-empty { cursor: pointer; opacity: 0.7; }
+.asset-item.asset-empty:hover { opacity: 1; }
+.asset-thumb-empty {
+  display: grid; place-items: center; color: var(--fg-faint);
+  border-style: dashed; object-fit: unset;
+}
+.asset-name-empty { color: var(--fg-faint); font-style: italic; }
 
 /* effects */
 .effect-add { display: flex; gap: 7px; }

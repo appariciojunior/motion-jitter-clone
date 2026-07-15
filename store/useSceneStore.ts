@@ -34,22 +34,18 @@ export interface ActiveEffect {
 }
 
 export interface BackgroundSettings {
+  source: 'color' | 'image' | 'card'; // solid/gradient · uploaded image · reflected from the featured card
   color: string;
   gradient: boolean;
   color2: string;
+  imageUrl: string | null;            // for source: 'image'
+  blur: number;                       // px blur for image/card backgrounds
 }
 
 export interface LogoSettings {
   url: string | null;
   position: 'tl' | 'tr' | 'bl' | 'br';
   size: number; // px
-}
-
-export interface TextSettings {
-  content: string;
-  position: 'top' | 'center' | 'bottom';
-  color: string;
-  size: number;
 }
 
 export interface SceneState {
@@ -71,7 +67,6 @@ export interface SceneState {
   safeArea: boolean;
   background: BackgroundSettings;
   logo: LogoSettings;
-  text: TextSettings;
   audioUrl: string | null;
 
   // assets → layer slots
@@ -93,10 +88,10 @@ export interface SceneState {
   toggleSafeArea: () => void;
   setBackground: (patch: Partial<BackgroundSettings>) => void;
   setLogo: (patch: Partial<LogoSettings>) => void;
-  setText: (patch: Partial<TextSettings>) => void;
   setAudioUrl: (url: string | null) => void;
 
   addAssets: (items: Omit<AssetItem, 'id' | 'visible'>[]) => void;
+  replaceAssetAt: (index: number, item: Omit<AssetItem, 'id' | 'visible'>) => void;
   removeAsset: (id: string) => void;
   toggleAsset: (id: string) => void;
   reorderAssets: (from: number, to: number) => void;
@@ -132,9 +127,8 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   width: initDims.width,
   height: initDims.height,
   safeArea: false,
-  background: { color: '#0d0d0d', gradient: false, color2: '#1f1f1f' },
+  background: { source: 'color', color: '#0d0d0d', gradient: false, color2: '#1f1f1f', imageUrl: null, blur: 28 },
   logo: { url: null, position: 'br', size: 96 },
-  text: { content: '', position: 'bottom', color: '#ffffff', size: 48 },
   audioUrl: null,
 
   assets: [],
@@ -164,7 +158,6 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   toggleSafeArea: () => set((s) => ({ safeArea: !s.safeArea })),
   setBackground: (patch) => set((s) => ({ background: { ...s.background, ...patch } })),
   setLogo: (patch) => set((s) => ({ logo: { ...s.logo, ...patch } })),
-  setText: (patch) => set((s) => ({ text: { ...s.text, ...patch } })),
   setAudioUrl: (url) => set(() => ({ audioUrl: url })),
 
   addAssets: (items) =>
@@ -174,6 +167,14 @@ export const useSceneStore = create<SceneState>((set, get) => ({
         ...items.map((it) => ({ ...it, id: nid('asset'), visible: true })),
       ],
     })),
+  // Set the image at a specific slot; appends if the slot is the next empty one.
+  replaceAssetAt: (index, item) =>
+    set((s) => {
+      const next = s.assets.slice();
+      if (index < next.length) next[index] = { ...next[index], name: item.name, url: item.url };
+      else next.push({ ...item, id: nid('asset'), visible: true });
+      return { assets: next };
+    }),
   removeAsset: (id) =>
     set((s) => ({ assets: s.assets.filter((a) => a.id !== id) })),
   toggleAsset: (id) =>
