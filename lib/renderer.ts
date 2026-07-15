@@ -276,7 +276,7 @@ export class SceneRenderer {
       const t = template.transform(frame, i, count, s.values, ctx);
       const norm = SPRITE_BASE / Math.max(slot.texW, slot.texH);
       slot.sprite.position.set(t.x, t.y);
-      slot.sprite.scale.set(norm * t.scale);
+      slot.sprite.scale.set(norm * t.scale * (t.scaleX ?? 1), norm * t.scale * (t.scaleY ?? 1));
       slot.sprite.rotation = t.rotation;
       slot.sprite.alpha = t.alpha;
       slot.sprite.skew.set(t.skewX ?? 0, t.skewY ?? 0);

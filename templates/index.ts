@@ -9,6 +9,23 @@ import { storiesVariants } from './stories';
 import { spinVariants } from './spin';
 import { flickerVariants } from './flicker';
 import { gridVariants } from './grid';
+import { threedVariants } from './threed';
+import { fieldVariants } from './field';
+import { wipeVariants } from './wipe';
+import { globeVariants } from './globe';
+import { coverflowVariants } from './coverflow';
+import { spiralVariants } from './spiral';
+import { tourVariants } from './tour';
+import { magazineVariants } from './magazine';
+import { gravityVariants } from './gravity';
+import { parallaxVariants } from './parallax';
+import { deckVariants } from './deck';
+import { flipVariants } from './flip';
+import { marqueeVariants } from './marquee';
+import { scaleVariants } from './scale';
+import { proximityVariants } from './proximity';
+import { framesVariants } from './frames';
+import { blankVariants } from './blank';
 
 const carouselVariants: Template[] = [
   { ...carousel, meta: { ...carousel.meta, name: 'Carousel 01' } },
@@ -17,15 +34,33 @@ const carouselVariants: Template[] = [
   }),
 ];
 
+// Order follows the reference catalogue's sidebar.
 export const templateList: Template[] = [
   ...carouselVariants,
-  ...wheelVariants,
   ...orbitVariants,
   ...stackVariants,
+  ...threedVariants,
+  ...wheelVariants,
+  ...fieldVariants,
+  ...wipeVariants,
   ...storiesVariants,
   ...spinVariants,
   ...flickerVariants,
+  ...globeVariants,
+  ...coverflowVariants,
   ...gridVariants,
+  ...spiralVariants,
+  ...tourVariants,
+  ...magazineVariants,
+  ...gravityVariants,
+  ...parallaxVariants,
+  ...deckVariants,
+  ...flipVariants,
+  ...marqueeVariants,
+  ...scaleVariants,
+  ...proximityVariants,
+  ...framesVariants,
+  ...blankVariants,
 ];
 
 export const templates: Record<string, Template> = Object.fromEntries(

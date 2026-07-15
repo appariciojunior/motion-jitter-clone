@@ -1,7 +1,7 @@
 {
-  "name": "motion-tool",
+  "name": "motion-studio",
   "version": "1.0.0",
-  "description": "",
+  "description": "Motion Studio — an open-source factory for quick videos and GIFs.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

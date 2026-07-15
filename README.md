@@ -1,8 +1,8 @@
-# motion-jitter-clone
+# Motion Studio
 
-Self-hosted 2D motion-graphics tool on localhost. Drag in images, pick a motion
-template, tweak live controls, preview in real time, export MP4/GIF via native
-ffmpeg. Personal use, single machine, no auth.
+An **open-source factory for quick videos and GIFs**. Drag in images, pick a
+motion template, tweak live controls, preview in real time, and export MP4/GIF
+via native ffmpeg. Runs self-hosted on localhost — single machine, no auth.
 
 ![UI](design-audit.png)
 
@@ -33,23 +33,36 @@ Layers (assets → Pixi sprites, slots in order)
 
 Principles: one live state read every frame · templates fully self-declare
 their controls · full value reset on template switch · fixed 8-type control
-vocabulary · shared `cardPath` helper (line / arc / ring / zwall).
+vocabulary · shared `cardPath` helper (line / arc / ring / zwall) · every
+template ships a default easing curve (`lib/easing.ts`).
 
-## Templates (17 across 8 families)
+## Motion templates
 
-Carousel, Wheel (fan/ring), Orbit (ellipse pass), Stack, Stories, Spin,
-Flicker, Grid — each family is one file in `templates/`, variants are preset
-bundles over the same pure transform (`templates/variant.ts`).
+25 families in `templates/` — Carousel, Orbit, Stack, 3D, Wheel, Field, Wipe,
+Stories, Spin, Flicker, Globe, Carousel 3D, Grid, Spiral, Tour, Magazine,
+Gravity, Parallax, Deck, Flip, Marquee, Scale, Proximity, Frames, and a Blank
+canvas. Each family is one file; variants are preset bundles over the same pure
+transform (`templates/variant.ts`).
 
-**Adding a motion** = one file: declare controls, compute `phase`, call
-`cardPath`, map controls onto scale/alpha/rotation/depth, register in
-`templates/index.ts`. The control panel, thumbnail, and export pick it up
-automatically. Same for effects (`effects/`).
+**Adding a motion** = one file: declare controls, compute `phase` (route it
+through `ctx.easedPhase` to inherit the scene's easing curve), map controls onto
+scale/alpha/rotation/depth, register in `templates/index.ts`. The control panel,
+easing block, thumbnail, and export pick it up automatically. Same for effects
+(`effects/`).
+
+## Easing
+
+Every template carries a cubic-bezier easing curve editable in the Easing block
+(`components/EasingPanel.tsx`). The preset library (`lib/easing.ts`) covers the
+signature curves (Flow, Glide, Linear, Ease, Sweep, Smooth, Flip), the standard
+Sine/Quad/Cubic/Quart/Expo families, physics curves (Bounce, Spring, Wiggle,
+Overshoot), and hand-dragged custom beziers. The renderer resolves the curve
+once per frame and reshapes each motion's cyclic phase while keeping loops
+seamless.
 
 ## Design system
 
-Tokens extracted from the Figma reference (`styles/tokens.css`): `#171717`
-cards (r14) on `#0d0d0d`, `#232323` tracks, `#2d2d2d` thumbs, 13px/#ccc labels,
-10px/1.5px eyebrows, value-inside-track sliders, dashed-ruler timeline with a
-playhead chip. `design-audit.png` is a 2× full-quality capture for auditing
-typography and spacing.
+Neutral-grey token set (`styles/tokens.css`): `#171717` cards (r14) on
+`#0d0d0d`, `#232323` tracks, `#2d2d2d` thumbs, 13px/#ccc labels, 10px/1.5px
+eyebrows, value-inside-track sliders, dashed-ruler timeline with a playhead
+chip. Light theme via `:root[data-theme="light"]`.

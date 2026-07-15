@@ -30,6 +30,8 @@ export interface LayerTransform {
   alpha: number;     // 0..1
   skewX?: number;    // optional, for fake-3D tilt
   skewY?: number;
+  scaleX?: number;   // optional non-uniform squash (default 1) — flips/page turns
+  scaleY?: number;   // optional non-uniform squash (default 1) — split-flap
   depth: number;     // sort order; higher = drawn on top / nearer
 }
 

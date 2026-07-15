@@ -32,8 +32,8 @@ export default function TemplateThumb({ template }: { template: Template }) {
     const out: CardPose[] = [];
     for (let i = 0; i < count; i++) {
       const t = template.transform(THUMB_FRAME, i, count, v, ctx);
-      const w = TEX_W * norm * t.scale;
-      const h = TEX_H * norm * t.scale;
+      const w = TEX_W * norm * t.scale * (t.scaleX ?? 1);
+      const h = TEX_H * norm * t.scale * (t.scaleY ?? 1);
       out.push({
         x: t.x, y: t.y, w, h,
         rotation: t.rotation,

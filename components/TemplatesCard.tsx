@@ -5,9 +5,6 @@ import { useSceneStore } from '@/store/useSceneStore';
 import { templateList, templateGroups } from '@/templates';
 import TemplateThumb from './TemplateThumb';
 
-// Groups observed in the source tool that aren't built yet.
-const ROADMAP = ['Field', '3D', 'Spiral', 'Parallax', 'Gravity', 'Magazine', 'Tour'];
-
 const Chevron = ({ dir = 'right' }: { dir?: 'right' | 'left' }) => (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={dir === 'left' ? { transform: 'rotate(180deg)' } : undefined}>
     <path d="M4.5 2.5L8 6l-3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
@@ -100,14 +97,6 @@ export default function TemplatesCard() {
                 </button>
               );
             })}
-
-            <div className="tpl-group-label">Coming soon</div>
-            {ROADMAP.map((n) => (
-              <button key={n} className="tpl-item soon" disabled title="Not built yet">
-                <span className="tpl-name">{n}</span>
-                <span className="tpl-soon">soon</span>
-              </button>
-            ))}
           </>
         )}
       </div>
