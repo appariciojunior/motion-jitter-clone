@@ -34,7 +34,11 @@
       "Bash(git rebase *)",
       "Bash(git stash *)",
       "Bash(git checkout *)",
-      "Bash(git commit -q -m 'chore: project settings + generated next-env *)"
+      "Bash(git commit -q -m 'chore: project settings + generated next-env *)",
+      "Bash(git fetch *)",
+      "Bash(npm test *)",
+      "Bash(git commit -q -m 'chore: settings churn *)",
+      "Bash(git merge *)"
     ]
   }
 }
