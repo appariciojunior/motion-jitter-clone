@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/dedaac61-71a5-425d-8395-9ed3d215759b/scratchpad/shot.mjs /Users/apparicio.junior/VSCode/Motion-Tool/._shot.mjs)",
+      "Bash(node ._shot.mjs)",
+      "Bash(node ._shot.mjs /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/dedaac61-71a5-425d-8395-9ed3d215759b/scratchpad/motion2.png)",
+      "Bash(node ._shot.mjs /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/dedaac61-71a5-425d-8395-9ed3d215759b/scratchpad/motion3.png)",
+      "Bash(node ._shot.mjs /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/dedaac61-71a5-425d-8395-9ed3d215759b/scratchpad/redesign.png)",
+      "Bash(node ._motioncheck.mjs)",
+      "Bash(node -e ' *)",
+      "Bash(node ._uploadcheck.mjs)",
+      "mcp__claude_ai_Figma__get_design_context",
+      "Bash(jq -r .[].type /Users/apparicio.junior/.claude/projects/-Users-apparicio-junior-VSCode-Motion-Tool/dedaac61-71a5-425d-8395-9ed3d215759b/tool-results/mcp-claude_ai_Figma-get_design_context-1784127229876.txt)",
+      "Bash(jq -r .[0].text /Users/apparicio.junior/.claude/projects/-Users-apparicio-junior-VSCode-Motion-Tool/dedaac61-71a5-425d-8395-9ed3d215759b/tool-results/mcp-claude_ai_Figma-get_design_context-1784127229876.txt)",
+      "Bash(awk 'NR>60 && NR<=140')",
+      "Bash(grep -nE '^\\\\s{2,4}<frame')",
+      "Bash(grep -oE '<text[^>]*name=\"[^\"]{2,40}\"')",
+      "Bash(awk -F'\"' '{print $1\" id=\"$2\" name=\"$4\" x=\"$6\" y=\"$8\" w=\"$10\" h=\"$12}')",
+      "Bash(awk -F'\"' '{print $2\"  \"$4\"  y=\"$8\" h=\"$12}')",
+      "Bash(node ._shot2x.mjs)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/apparicio.junior/VSCode/Motion-Tool/design-audit.png)",
+      "Bash(sips -c 240 700 --cropOffset 2260 0 design-audit.png --out /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/dedaac61-71a5-425d-8395-9ed3d215759b/scratchpad/crop-bl.png)",
+      "Bash(node ._shot2x.mjs /Users/apparicio.junior/VSCode/Motion-Tool/design-audit.png)",
+      "Bash(node ._tplcheck.mjs)",
+      "Bash(gh auth *)",
+      "Bash(git init *)",
+      "Bash(gh repo *)",
+      "Bash(git config *)",
+      "Bash(git remote *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git pull *)",
+      "Bash(git push *)",
+      "Bash(git commit *)"
+    ]
+  }
+}

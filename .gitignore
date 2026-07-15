@@ -1,0 +1,13 @@
+# dependencies / build
+node_modules/
+.next/
+tsconfig.tsbuildinfo
+
+# exports (generated videos/gifs)
+public/exports/*
+!public/exports/.gitkeep
+
+# machine-local
+.claude/settings.local.json
+.DS_Store
+*.log

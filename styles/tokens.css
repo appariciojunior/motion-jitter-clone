@@ -1,0 +1,86 @@
+/* ============================================================
+   DESIGN TOKENS — extracted from the Figma reference frame
+   (Design Circuit / Arqé, node 7587:809). Pure neutral greys,
+   no hue anywhere. Panels are floating #171717 cards with 14px
+   radius on a #0d0d0d body, 8px gutters.
+   ============================================================ */
+:root {
+  /* ---- Surfaces ---- */
+  --stage:      #0d0d0d;   /* body behind the floating cards */
+  --card:       #171717;   /* floating panel cards (Figma: bg-[#171717], r14) */
+  --card-inset: #232323;   /* input tracks / wells (Figma: bg-[#232323]) */
+  --card-thumb: #2d2d2d;   /* active segment thumb / slider fill / kbd chip */
+  --frame:      #0d0d0d;   /* canvas frame backdrop */
+  --line:       #2a2a2a;   /* hairline dividers (Figma: Horizontal Divider) */
+  --line-soft:  rgba(255,255,255,0.14); /* vertical separators (timeline) */
+  --handle:     #424242;   /* slider handle bar */
+
+  /* ---- Text ---- */
+  --fg:        #ffffff;    /* active / selected */
+  --fg-body:   #e8e8e8;    /* primary readouts (time current) */
+  --fg-label:  #cccccc;    /* control labels (13px) */
+  --fg-value:  #aaaaaa;    /* slider values (12px) */
+  --fg-muted:  #8a8a8a;    /* eyebrows, ruler labels */
+  --fg-faint:  #666666;    /* inactive segments, placeholders */
+
+  /* ---- Inverse (Export button, playhead chip) ---- */
+  --inverse-bg:   #ffffff;
+  --inverse-fg:   #111111;
+  --chip-bg:      #cccccc;
+  --chip-fg:      #171717;
+
+  /* ---- Radii (Figma) ---- */
+  --r-card:  14px;   /* floating cards */
+  --r-ctrl:  8px;    /* tracks, inputs, play button */
+  --r-seg:   6px;    /* active segment thumb, export button */
+  --r-chip:  4px;    /* kbd chip, playhead chip */
+  --r-nav:   10px;   /* rail nav buttons */
+
+  /* ---- Type scale (Arqé font in the ref; Inter stands in) ---- */
+  --fs-label: 13px;  /* control labels, lh 19.5 */
+  --fs-ui:    12px;  /* segments, values, buttons, time, lh 18 */
+  --fs-eyebrow: 10px;/* section eyebrows, Medium, tracking 1.5px */
+  --fs-micro: 9px;   /* ruler labels (mono) */
+  --lh-label: 19.5px;
+  --lh-ui:    18px;
+
+  /* ---- Spacing ---- */
+  --gutter:    8px;   /* between floating cards */
+  --pad-card: 14px;   /* templates header padding */
+  --pad-sect: 20px;   /* section h-padding (right panel, timeline) */
+  --gap-row:  12px;   /* between control rows (66h rows on 78 pitch) */
+  --gap-tight: 10px;  /* label → control */
+
+  /* ---- Layout ---- */
+  --rail-w:  76px;
+  --panel-w: 280px;
+  --bottom-h: 78px;   /* timeline card height */
+
+  /* ---- Control metrics ---- */
+  --ctl-h:   34px;    /* track height */
+  --seg-pad: 3px;     /* segmented inset padding */
+
+  /* ---- Motion ---- */
+  --t-fast: 120ms;
+}
+
+:root[data-theme="light"] {
+  --stage:      #e7e7ea;
+  --card:       #ffffff;
+  --card-inset: #f0f0f0;
+  --card-thumb: #e2e2e6;
+  --frame:      #e7e7ea;
+  --line:       rgba(0,0,0,0.08);
+  --line-soft:  rgba(0,0,0,0.14);
+  --handle:     #b5b5b5;
+  --fg:        #111111;
+  --fg-body:   #1a1a1a;
+  --fg-label:  #3a3a3a;
+  --fg-value:  #6a6a6a;
+  --fg-muted:  #8a8a8a;
+  --fg-faint:  #9a9a9a;
+  --inverse-bg: #111111;
+  --inverse-fg: #ffffff;
+  --chip-bg:    #333333;
+  --chip-fg:    #ffffff;
+}
