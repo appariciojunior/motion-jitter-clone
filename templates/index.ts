@@ -30,7 +30,7 @@ import { blankVariants } from './blank';
 const carouselVariants: Template[] = [
   { ...carousel, meta: { ...carousel.meta, name: 'Carousel 01' } },
   variant(carousel, 'carousel-02', 'Carousel 02', {
-    gap: 140, bigScale: 145, perspective: 40, fade: 45, speed: 0.4,
+    gap: 140, bigScale: 145, perspective: 0, fade: 45, speed: 0.4,
   }),
 ];
 

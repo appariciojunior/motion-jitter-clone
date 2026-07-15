@@ -19,7 +19,7 @@ const stack: Template = {
     { key: 'visible',      label: 'Visible',       type: 'slider', min: 2, max: 8, step: 1,    default: 3 },  // cards shown in the stack
     { key: 'cardSize',     label: 'Plane Size',    type: 'slider', min: 50, max: 800, step: 1, default: 300 },
     { key: 'cornerRadius', label: 'Corner Radius', type: 'slider', min: 0, max: 100, step: 1,  default: 12 },
-    { key: 'perspective',  label: 'Perspective',   type: 'slider', min: 0, max: 1000, step: 1, default: 120 }, // vertical gap between slots
+    { key: 'perspective',  label: 'Perspective',   type: 'slider', min: 0, max: 1000, step: 1, default: 0 }, // extra vertical gap between slots
     { key: 'stagger',      label: 'Stagger',       type: 'slider', min: 0, max: 0.5, step: 0.01, default: 0.14 }, // per-card delay
     { key: 'speed',        label: 'Speed',         type: 'slider', min: 0, max: 4, step: 0.1,  default: 0.6 }, // steps/sec
     { key: 'offset',       label: 'Offset',        type: 'xypad',                              default: { x: 0, y: 0 } },
@@ -91,6 +91,6 @@ const stack: Template = {
 export const stackVariants: Template[] = [
   stack, // Stack 01 — deck advance with anticipation
   variant(stack, 'stack-02', 'Stack 02', {
-    visible: 4, stagger: 0.24, perspective: 260, speed: 0.4,
+    visible: 4, stagger: 0.24, perspective: 0, speed: 0.4,
   }),
 ];
