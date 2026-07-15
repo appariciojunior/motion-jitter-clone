@@ -1,31 +1,8 @@
 import type { Template } from '@/lib/types';
-import { carousel } from './carousel';
-import { variant } from './variant';
-import { wheelVariants } from './wheel';
-import { orbitVariants } from './orbit';
-import { stackVariants } from './stack';
-import { storiesVariants } from './stories';
-import { spinVariants } from './spin';
-import { flickerVariants } from './flicker';
-import { gridVariants } from './grid';
+import { completeTemplateList } from './catalog';
 
-const carouselVariants: Template[] = [
-  { ...carousel, meta: { ...carousel.meta, name: 'Carousel 01' } },
-  variant(carousel, 'carousel-02', 'Carousel 02', {
-    gap: 140, bigScale: 145, perspective: 40, fade: 45, speed: 0.4,
-  }),
-];
-
-export const templateList: Template[] = [
-  ...carouselVariants,
-  ...wheelVariants,
-  ...orbitVariants,
-  ...stackVariants,
-  ...storiesVariants,
-  ...spinVariants,
-  ...flickerVariants,
-  ...gridVariants,
-];
+// Verified against the live Arqé Singles catalogue: 25 families, 189 presets.
+export const templateList: Template[] = completeTemplateList;
 
 export const templates: Record<string, Template> = Object.fromEntries(
   templateList.map((t) => [t.meta.id, t])
@@ -43,18 +20,31 @@ export const templateGroups: { group: string; items: Template[] }[] = (() => {
 })();
 
 export function getTemplate(id: string): Template {
-  return templates[id] ?? carousel;
+  return templates[id] ?? templateList[0];
 }
 
 // Build the initial value bag from a template's declared defaults.
 export function defaultsFor(id: string): Record<string, any> {
   const t = getTemplate(id);
   const values: Record<string, any> = {};
+  for (const [key, value] of Object.entries(t.meta.defaults ?? {})) {
+    values[key] = typeof value === 'object' && value !== null
+      ? { ...(value as object) }
+      : value;
+  }
   for (const c of t.controls) {
     // clone objects (xypad) so state is never shared by reference
     values[c.key] = typeof c.default === 'object' && c.default !== null
       ? { ...(c.default as object) }
       : c.default;
   }
+
+  // Keep timing presets consistent. Carousel/Stack expose stagger/delay as
+  // frames in the panel, but store them as seconds internally.
+  if ('cycles' in values) values.cycles = 1;
+  if ('duration' in values) values.duration = 1.6;
+  if ('delay' in values) values.delay = 0;
+  const staggerControl = t.controls.find((c) => c.key === 'stagger');
+  if ('stagger' in values && staggerControl?.display === 'frames') values.stagger = 2 / 30;
   return values;
 }

@@ -35,16 +35,21 @@ Principles: one live state read every frame · templates fully self-declare
 their controls · full value reset on template switch · fixed 8-type control
 vocabulary · shared `cardPath` helper (line / arc / ring / zwall).
 
-## Templates (17 across 8 families)
+## Templates (189 across 25 families)
 
-Carousel, Wheel (fan/ring), Orbit (ellipse pass), Stack, Stories, Spin,
-Flicker, Grid — each family is one file in `templates/`, variants are preset
-bundles over the same pure transform (`templates/variant.ts`).
+Carousel, Orbit, Stack, 3D, Wheel, Field, Wipe, Stories, Spin, Flicker,
+Globe, Carousel 3D, Grid, Spiral, Tour, Magazine, Gravity, Parallax, Deck,
+Flip, Marquee, Scale, Proximity, Frames, and Blank. The verified preset values
+and per-preset control schemas live in `templates/catalog.generated.json`; the
+family motion implementations live in `templates/catalog.ts`.
 
-**Adding a motion** = one file: declare controls, compute `phase`, call
-`cardPath`, map controls onto scale/alpha/rotation/depth, register in
-`templates/index.ts`. The control panel, thumbnail, and export pick it up
-automatically. Same for effects (`effects/`).
+Scene timing includes cycles, duration, delay, and all 27 built-in cubic-bezier
+easing presets, with editable handles for custom curves.
+
+**Adding a motion** = add its preset/schema data, provide a family transform in
+`templates/catalog.ts`, and register the family mapping there. The control
+panel, thumbnail, live preview, and export pick it up automatically. Effects
+remain self-contained in `effects/`.
 
 ## Design system
 

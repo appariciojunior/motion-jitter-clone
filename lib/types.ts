@@ -18,6 +18,24 @@ export interface ControlDef {
   min?: number; max?: number; step?: number;  // slider
   options?: string[];          // pills / select / toggle
   default: number | string | boolean | { x: number; y: number };
+  section?: string;            // Scene / Timing / family-specific subsection
+  unit?: string;               // display unit such as f (frames), s, or %
+  display?: 'frames';          // value is stored in seconds but edited/displayed as frames
+}
+
+export interface CubicBezier {
+  h1x: number;
+  h1y: number;
+  h2x: number;
+  h2y: number;
+}
+
+export interface TransformContext {
+  fps: number;
+  width: number;
+  height: number;
+  progress?: number; // timing + easing adjusted, normalized to 0..1
+  elapsed?: number;
 }
 
 // ----- What a template's transform returns for ONE layer at ONE frame -----
@@ -30,18 +48,27 @@ export interface LayerTransform {
   skewX?: number;    // optional, for fake-3D tilt
   skewY?: number;
   depth: number;     // sort order; higher = drawn on top / nearer
+  order?: number;    // optional tie-break; lets cyclic scenes avoid static index layering
 }
 
 // ----- A motion template (SEAM 1) -----
 export interface Template {
-  meta: { id: string; name: string; group: string; thumbnail?: string };
+  meta: {
+    id: string;
+    name: string;
+    group: string;
+    thumbnail?: string;
+    baseMode?: string;
+    easing?: CubicBezier;
+    defaults?: Record<string, any>;
+  };
   controls: ControlDef[];                     // its FULL own set
   transform: (
     frame: number,                            // absolute frame index
     index: number,                            // this layer's slot 0..count-1
     count: number,                            // total active layers
     values: Record<string, any>,              // current control values
-    ctx: { fps: number; width: number; height: number } // canvas ctx
+    ctx: TransformContext                         // canvas + normalized timing
   ) => LayerTransform;                         // PURE. no side effects.
 }
 

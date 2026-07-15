@@ -1,12 +1,46 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ControlDef } from '@/lib/types';
+import { useSceneStore } from '@/store/useSceneStore';
 
 interface RowProps {
   def: ControlDef;
   value: any;
   onChange: (val: any) => void;
+}
+
+function useRafBatchedChange<T>(onChange: (value: T) => void) {
+  const callbackRef = useRef(onChange);
+  const latestRef = useRef<T | null>(null);
+  const frameRef = useRef(0);
+
+  callbackRef.current = onChange;
+
+  const flush = useCallback(() => {
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    frameRef.current = 0;
+    if (latestRef.current === null) return;
+    const latest = latestRef.current;
+    latestRef.current = null;
+    callbackRef.current(latest);
+  }, []);
+
+  const schedule = useCallback((next: T) => {
+    latestRef.current = next;
+    if (frameRef.current) return;
+    frameRef.current = requestAnimationFrame(flush);
+  }, [flush]);
+
+  const cancel = useCallback(() => {
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    frameRef.current = 0;
+    latestRef.current = null;
+  }, []);
+
+  useEffect(() => cancel, [cancel]);
+
+  return { schedule, flush, cancel };
 }
 
 export function ControlRow({ def, value, onChange }: RowProps) {
@@ -37,11 +71,27 @@ function renderControl(def: ControlDef, value: any, onChange: (v: any) => void) 
 // (12px #aaa), click the value to type an exact number.
 function SliderControl({ def, value, onChange }: RowProps) {
   const min = def.min ?? 0, max = def.max ?? 100, step = def.step ?? 1;
+  const fps = useSceneStore((s) => s.fps);
   const trackRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState(false);
-  const num = Number(value);
+  const [dragging, setDragging] = useState(false);
+  const [previewValue, setPreviewValue] = useState(Number(value));
+  const change = useRafBatchedChange<number>(onChange);
+  const num = dragging ? previewValue : Number(value);
+  const displayScale = def.display === 'frames' ? fps : 1;
+  const displayNum = num * displayScale;
+  const displayMin = min * displayScale;
+  const displayMax = max * displayScale;
+  const displayStep = step * displayScale;
   const pct = Math.max(0, Math.min(100, ((num - min) / (max - min)) * 100));
-  const decimals = step < 1 ? 1 : 0;
+  let decimals = 0;
+  while (decimals < 3 && Math.abs(displayStep * (10 ** decimals) - Math.round(displayStep * (10 ** decimals))) > 1e-8) {
+    decimals += 1;
+  }
+
+  useEffect(() => {
+    if (!dragging) setPreviewValue(Number(value));
+  }, [dragging, value]);
 
   const setFromX = (clientX: number) => {
     const el = trackRef.current;
@@ -49,19 +99,38 @@ function SliderControl({ def, value, onChange }: RowProps) {
     const rect = el.getBoundingClientRect();
     const t = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const snapped = Math.round((min + t * (max - min)) / step) * step;
-    onChange(Number(Math.max(min, Math.min(max, snapped)).toFixed(4)));
+    const next = Number(Math.max(min, Math.min(max, snapped)).toFixed(4));
+    setPreviewValue(next);
+    change.schedule(next);
+  };
+
+  const finishDrag = (pointerId: number) => {
+    change.flush();
+    setDragging(false);
+    if (trackRef.current?.hasPointerCapture(pointerId)) {
+      trackRef.current.releasePointerCapture(pointerId);
+    }
   };
 
   return (
     <div
       ref={trackRef}
-      className="strack"
+      className={`strack ${dragging ? 'dragging' : ''}`}
       onPointerDown={(e) => {
         if (editing) return;
-        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+        e.currentTarget.setPointerCapture(e.pointerId);
+        setDragging(true);
         setFromX(e.clientX);
       }}
-      onPointerMove={(e) => { if (!editing && e.buttons === 1) setFromX(e.clientX); }}
+      onPointerMove={(e) => {
+        if (!editing && e.currentTarget.hasPointerCapture(e.pointerId)) setFromX(e.clientX);
+      }}
+      onPointerUp={(e) => finishDrag(e.pointerId)}
+      onPointerCancel={(e) => {
+        change.cancel();
+        setDragging(false);
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      }}
     >
       <div className="sfill" style={{ width: `${pct}%` }} />
       <div className="shandle" style={{ left: `${pct}%` }} />
@@ -70,12 +139,12 @@ function SliderControl({ def, value, onChange }: RowProps) {
           className="sval-input"
           type="number"
           autoFocus
-          min={min}
-          max={max}
-          step={step}
-          defaultValue={Number(num.toFixed(decimals))}
+          min={displayMin}
+          max={displayMax}
+          step={displayStep}
+          defaultValue={Number(displayNum.toFixed(decimals))}
           onPointerDown={(e) => e.stopPropagation()}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => onChange(Number(e.target.value) / displayScale)}
           onBlur={() => setEditing(false)}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditing(false); }}
         />
@@ -84,7 +153,7 @@ function SliderControl({ def, value, onChange }: RowProps) {
           className="sval"
           onPointerDown={(e) => { e.stopPropagation(); setEditing(true); }}
         >
-          {num.toFixed(decimals)}
+          {displayNum.toFixed(decimals)}{def.unit ?? ''}
         </span>
       )}
     </div>
@@ -132,15 +201,24 @@ function ColorControl({ value, onChange }: { value: any; onChange: (v: any) => v
 function XYPadControl({ def, value, onChange }: RowProps) {
   const ref = useRef<HTMLDivElement>(null);
   const range = def.max ?? 400;
-  const v = value ?? { x: 0, y: 0 };
+  const [dragging, setDragging] = useState(false);
+  const [previewValue, setPreviewValue] = useState(value ?? { x: 0, y: 0 });
+  const change = useRafBatchedChange<{ x: number; y: number }>(onChange);
+  const v = dragging ? previewValue : (value ?? { x: 0, y: 0 });
+
+  useEffect(() => {
+    if (!dragging) setPreviewValue(value ?? { x: 0, y: 0 });
+  }, [dragging, value]);
 
   const setFromEvent = (clientX: number, clientY: number) => {
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const nx = (clientX - rect.left) / rect.width;
-    const ny = (clientY - rect.top) / rect.height;
-    onChange({ x: Math.round((nx * 2 - 1) * range), y: Math.round((ny * 2 - 1) * range) });
+    const nx = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const ny = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+    const next = { x: Math.round((nx * 2 - 1) * range), y: Math.round((ny * 2 - 1) * range) };
+    setPreviewValue(next);
+    change.schedule(next);
   };
 
   const dotX = ((v.x / range + 1) / 2) * 100;
@@ -150,9 +228,25 @@ function XYPadControl({ def, value, onChange }: RowProps) {
     <div className="xypad-wrap">
       <div
         ref={ref}
-        className="xypad"
-        onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); setFromEvent(e.clientX, e.clientY); }}
-        onPointerMove={(e) => { if (e.buttons === 1) setFromEvent(e.clientX, e.clientY); }}
+        className={`xypad ${dragging ? 'dragging' : ''}`}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          setDragging(true);
+          setFromEvent(e.clientX, e.clientY);
+        }}
+        onPointerMove={(e) => {
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) setFromEvent(e.clientX, e.clientY);
+        }}
+        onPointerUp={(e) => {
+          change.flush();
+          setDragging(false);
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+        }}
+        onPointerCancel={(e) => {
+          change.cancel();
+          setDragging(false);
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+        }}
       >
         <div className="xypad-cross-h" />
         <div className="xypad-cross-v" />

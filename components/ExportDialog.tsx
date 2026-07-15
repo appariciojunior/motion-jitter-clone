@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSceneStore } from '@/store/useSceneStore';
 import { getRendererInstance } from '@/lib/rendererInstance';
 
@@ -21,21 +21,73 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
   const store = useSceneStore;
   const [format, setFormat] = useState<Fmt>('mp4');
   const [phase, setPhase] = useState<Phase>('idle');
+  const [visualPhase, setVisualPhase] = useState<Phase>('idle');
+  const [phaseMotion, setPhaseMotion] = useState<'idle' | 'exiting' | 'entering'>('idle');
+  const [closing, setClosing] = useState(false);
   const [captured, setCaptured] = useState(0);
   const [total, setTotal] = useState(0);
   const [outputs, setOutputs] = useState<string[]>([]);
   const [err, setErr] = useState('');
+  const phaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closingRef = useRef(false);
+
+  useEffect(() => () => {
+    if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  }, []);
+
+  const transitionTo = useCallback((next: Phase) => {
+    setPhase(next);
+
+    if (phaseTimerRef.current) {
+      clearTimeout(phaseTimerRef.current);
+      phaseTimerRef.current = null;
+    }
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setVisualPhase(next);
+      setPhaseMotion('idle');
+      return;
+    }
+
+    setPhaseMotion('exiting');
+    phaseTimerRef.current = setTimeout(() => {
+      setVisualPhase(next);
+      setPhaseMotion('entering');
+      phaseTimerRef.current = setTimeout(() => {
+        setPhaseMotion('idle');
+        phaseTimerRef.current = null;
+      }, 150);
+    }, 100);
+  }, []);
+
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onClose();
+      return;
+    }
+
+    setClosing(true);
+    closeTimerRef.current = setTimeout(() => {
+      closeTimerRef.current = null;
+      onClose();
+    }, 150);
+  }, [onClose]);
 
   const run = async () => {
     const s = store.getState();
     const renderer = getRendererInstance();
-    if (!renderer) { setErr('Renderer not ready'); setPhase('error'); return; }
+    if (!renderer) { setErr('Renderer not ready'); transitionTo('error'); return; }
 
-    const totalFrames = Math.max(1, Math.round(s.duration * s.fps));
+    const totalFrames = Math.max(1, Math.round(s.timelineDuration * s.fps));
     const wasPlaying = s.playing;
     s.setPlaying(false);
     setTotal(totalFrames);
-    setPhase('capturing');
+    transitionTo('capturing');
     setErr('');
 
     try {
@@ -49,7 +101,7 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
         if (f % 5 === 0) await new Promise((r) => setTimeout(r, 0));
       }
 
-      setPhase('encoding');
+      transitionTo('encoding');
 
       // audio bytes (blob url → base64) if present
       let audio: string | undefined;
@@ -69,21 +121,21 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
       });
 
       setOutputs(files);
-      setPhase('done');
+      transitionTo('done');
       s.setFrame(s.frame);
       if (wasPlaying) s.setPlaying(true);
     } catch (e: any) {
       setErr(String(e?.message ?? e));
-      setPhase('error');
+      transitionTo('error');
     }
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <div className={`modal-backdrop ${closing ? 'closing' : ''}`} onClick={requestClose}>
+      <div className="modal" aria-busy={phase === 'capturing' || phase === 'encoding'} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span>Export</span>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" aria-disabled={closing} onClick={requestClose}>✕</button>
         </div>
 
         <div className="modal-body">
@@ -98,41 +150,43 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {phase === 'idle' && (
-            <button className="btn primary full" onClick={run}>Start export</button>
-          )}
+          <div className={`export-phase ${phaseMotion}`} data-phase={visualPhase}>
+            {visualPhase === 'idle' && (
+              <button className="btn primary full" onClick={run}>Start export</button>
+            )}
 
-          {phase === 'capturing' && (
-            <div className="progress">
-              <div className="progress-bar"><div style={{ width: `${(captured / total) * 100}%` }} /></div>
-              <span>Capturing frames {captured}/{total}</span>
-            </div>
-          )}
+            {visualPhase === 'capturing' && (
+              <div className="progress">
+                <div className="progress-bar"><div style={{ width: `${(captured / total) * 100}%` }} /></div>
+                <span>Capturing frames {captured}/{total}</span>
+              </div>
+            )}
 
-          {phase === 'encoding' && <div className="progress"><span>Encoding with ffmpeg…</span></div>}
+            {visualPhase === 'encoding' && <div className="progress"><span>Encoding with ffmpeg…</span></div>}
 
-          {phase === 'done' && (
-            <div className="export-done">
-              <p>Done. Saved to <code>/exports</code>:</p>
-              <ul>
-                {outputs.map((f) => (
-                  <li key={f}><a href={`/exports/${f}`} download>{f}</a></li>
-                ))}
-              </ul>
-            </div>
-          )}
+            {visualPhase === 'done' && (
+              <div className="export-done">
+                <p>Done. Saved to <code>/exports</code>:</p>
+                <ul>
+                  {outputs.map((f) => (
+                    <li key={f}><a href={`/exports/${f}`} download>{f}</a></li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-          {phase === 'error' && (
-            <div className="export-error">
-              Export failed: {err}
-              {/ffmpeg|ENOENT/i.test(err) && (
-                <div className="export-hint">
-                  ffmpeg isn’t installed. Install it, then retry:<br />
-                  <code>brew install ffmpeg</code>
-                </div>
-              )}
-            </div>
-          )}
+            {visualPhase === 'error' && (
+              <div className="export-error">
+                Export failed: {err}
+                {/ffmpeg|ENOENT/i.test(err) && (
+                  <div className="export-hint">
+                    ffmpeg isn’t installed. Install it, then retry:<br />
+                    <code>brew install ffmpeg</code>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -28,17 +28,17 @@ function buildRuler(duration: number) {
 export default function Timeline() {
   const frame = useSceneStore((s) => s.frame);
   const fps = useSceneStore((s) => s.fps);
-  const duration = useSceneStore((s) => s.duration);
+  const timelineDuration = useSceneStore((s) => s.timelineDuration);
   const playing = useSceneStore((s) => s.playing);
   const setPlaying = useSceneStore((s) => s.setPlaying);
   const setFrame = useSceneStore((s) => s.setFrame);
-  const setDuration = useSceneStore((s) => s.setDuration);
+  const setTimelineDuration = useSceneStore((s) => s.setTimelineDuration);
   const [showExport, setShowExport] = useState(false);
 
-  const totalFrames = Math.max(1, Math.round(duration * fps));
+  const totalFrames = Math.max(1, Math.round(timelineDuration * fps));
   const curTime = frame / fps;
   const progress = (frame / (totalFrames - 1 || 1)) * 100;
-  const { labels, dashes } = buildRuler(duration);
+  const { labels, dashes } = buildRuler(timelineDuration);
 
   return (
     <div className="timeline">
@@ -50,7 +50,7 @@ export default function Timeline() {
         )}
       </button>
 
-      <span className="time-readout"><b>{fmt(curTime)}</b> / {fmt(duration)}s</span>
+      <span className="time-readout"><b>{fmt(curTime)}</b> / {fmt(timelineDuration)}s</span>
 
       <div className="scrubber">
         <div className="ruler">
@@ -73,7 +73,15 @@ export default function Timeline() {
       <span className="tl-divider" />
 
       <label className="dur-field">
-        <input type="number" min={1} max={60} step={1} value={duration} onChange={(e) => setDuration(Math.max(1, Number(e.target.value)))} />
+        <input
+          type="number"
+          min={0.1}
+          max={60}
+          step={0.1}
+          aria-label="Timeline duration"
+          value={timelineDuration}
+          onChange={(e) => setTimelineDuration(Math.max(0.1, Number(e.target.value)))}
+        />
         <span>s</span>
       </label>
 

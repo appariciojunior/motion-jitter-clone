@@ -1,6 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useAnimatedRemoval } from '@/lib/useAnimatedRemoval';
+import { useFlipList } from '@/lib/useFlipList';
 import { useSceneStore } from '@/store/useSceneStore';
 
 const EyeIcon = ({ off }: { off?: boolean }) => (
@@ -23,8 +25,14 @@ export default function AssetsPanel() {
   const reorderAssets = useSceneStore((s) => s.reorderAssets);
   const clearAssets = useSceneStore((s) => s.clearAssets);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
+  const { isLeaving, requestRemoval } = useAnimatedRemoval(removeAsset);
+  const { snapshot } = useFlipList(
+    listRef,
+    assets.map((asset) => asset.id).join('|'),
+  );
 
   const ingest = (files: FileList | File[]) => {
     const items = Array.from(files)
@@ -58,29 +66,39 @@ export default function AssetsPanel() {
           </div>
         )}
 
-        <ul className="asset-list">
-          {assets.map((a, i) => (
-            <li
-              key={a.id}
-              className={`asset-item ${dragIdx === i ? 'dragging' : ''}`}
-              draggable
-              onDragStart={() => setDragIdx(i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => { if (dragIdx !== null && dragIdx !== i) reorderAssets(dragIdx, i); setDragIdx(null); }}
-              onDragEnd={() => setDragIdx(null)}
-            >
-              <span className="asset-idx">{i + 1}</span>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="asset-thumb" src={a.url} alt={a.name} />
-              <span className="asset-name" title={a.name}>{a.name}</span>
-              <button className={`icon-btn ${a.visible ? '' : 'off'}`} title={a.visible ? 'Hide' : 'Show'} onClick={() => toggleAsset(a.id)}>
-                <EyeIcon off={!a.visible} />
-              </button>
-              <button className="icon-btn" title="Remove" onClick={() => removeAsset(a.id)}>
-                <XIcon />
-              </button>
-            </li>
-          ))}
+        <ul className="asset-list" ref={listRef}>
+          {assets.map((a, i) => {
+            const leaving = isLeaving(a.id);
+            return (
+              <li
+                key={a.id}
+                data-flip-id={a.id}
+                className={`asset-item ${dragIdx === i ? 'dragging' : ''} ${leaving ? 'leaving' : ''}`}
+                draggable={!leaving}
+                onDragStart={() => setDragIdx(i)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (dragIdx !== null && dragIdx !== i) {
+                    snapshot();
+                    reorderAssets(dragIdx, i);
+                  }
+                  setDragIdx(null);
+                }}
+                onDragEnd={() => setDragIdx(null)}
+              >
+                <span className="asset-idx">{i + 1}</span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="asset-thumb" src={a.url} alt={a.name} />
+                <span className="asset-name" title={a.name}>{a.name}</span>
+                <button className={`icon-btn ${a.visible ? '' : 'off'}`} title={a.visible ? 'Hide' : 'Show'} onClick={() => toggleAsset(a.id)}>
+                  <EyeIcon off={!a.visible} />
+                </button>
+                <button className="icon-btn" title="Remove" onClick={() => requestRemoval(a.id)}>
+                  <XIcon />
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </>

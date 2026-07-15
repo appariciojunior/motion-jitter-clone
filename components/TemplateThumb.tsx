@@ -8,7 +8,7 @@ import { defaultsFor } from '@/templates';
 // and render the resulting card layout as plain divs. Because it uses the real
 // transform + declared defaults, thumbs always match the actual motion.
 const THUMB_FRAME = 40;              // ~1.3s in — mid-motion pose
-const CTX = { fps: 30, width: 810, height: 1080 }; // 3:4 preview space
+const CTX = { fps: 30, width: 810, height: 1080, progress: 0.35, elapsed: 1.3 }; // 3:4 preview space
 const TEX_W = 480, TEX_H = 600;      // placeholder texture proportions
 const SPRITE_BASE = 340;
 
