@@ -30,7 +30,11 @@
       "Bash(git commit -m ' *)",
       "Bash(git pull *)",
       "Bash(git push *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git rebase *)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(git commit -q -m 'chore: project settings + generated next-env *)"
     ]
   }
 }
