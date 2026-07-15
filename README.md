@@ -66,3 +66,9 @@ Neutral-grey token set (`styles/tokens.css`): `#171717` cards (r14) on
 `#0d0d0d`, `#232323` tracks, `#2d2d2d` thumbs, 13px/#ccc labels, 10px/1.5px
 eyebrows, value-inside-track sliders, dashed-ruler timeline with a playhead
 chip. Light theme via `:root[data-theme="light"]`.
+
+## Collaborators
+
+Thanks to [@quefreen](https://github.com/quefreen) and
+[@milkatx](https://github.com/milkatx) for the help, support, and quick repo
+edits.

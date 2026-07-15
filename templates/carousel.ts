@@ -19,7 +19,8 @@ export const carousel: Template = {
     { key: 'bigScale',     label: 'Big Scale',     type: 'slider', min: 100, max: 200, step: 1, default: 120 }, // featured card size %
     { key: 'perspective',  label: 'Perspective',   type: 'slider', min: 0, max: 200, step: 1,  default: 0 },
     { key: 'offset',       label: 'Offset',        type: 'xypad',                              default: { x: 0, y: 0 } },
-    { key: 'fade',         label: 'Fade',          type: 'slider', min: 0, max: 100, step: 1,  default: 0 },   // edge fade %
+    { key: 'fade',         label: 'Fade',          type: 'slider', min: 0, max: 100, step: 1,  default: 0 },   // centre-distance fade %
+    { key: 'outerFade',    label: 'Outer Fade',    type: 'slider', min: 0, max: 100, step: 1,  default: 100 }, // fade out while leaving the frame %
     { key: 'speed',        label: 'Speed',         type: 'slider', min: 0, max: 4, step: 0.1,  default: 0.6 }, // cards/sec
   ],
 
@@ -48,7 +49,18 @@ export const carousel: Template = {
     const skew = -Math.sign(offset) * (1 - p.depthNorm) * 0.18 * persp;
 
     // Edge fade                                                                  ← Fade
-    const alpha = 1 - (v.fade / 100) * (1 - p.depthNorm);
+    let alpha = 1 - (v.fade / 100) * (1 - p.depthNorm);
+
+    // Outer fade: as the card starts leaving the frame, fade it out — fully     ← Outer Fade
+    // transparent by the time it has fully exited. Axis-aware.
+    const half = (horiz ? ctx.width : ctx.height) / 2;
+    const cardHalf = (v.cardSize * (scale / sizeFactor)) / 2;
+    const axisPos = horiz ? x : y;
+    const leaving = Math.abs(axisPos) - (half - cardHalf);       // >0 once the edge is crossed
+    if (leaving > 0) {
+      const t = Math.min(1, leaving / Math.max(1, cardHalf * 2)); // 1 = fully outside
+      alpha *= 1 - (v.outerFade / 100) * (t * t * (3 - 2 * t));   // smooth falloff
+    }
 
     return {
       x,
