@@ -23,7 +23,8 @@ export interface CardPathResult {
 export function cardPath(p: CardPathParams): CardPathResult {
   let offset = p.index - p.phase;                   // signed distance from centre
   // Optional wrap: fold offset into [-count/2, count/2) so cards recycle endlessly
-  // and always fill both sides of the view (seamless carousel loop).
+  // and always fill both sides of the view (seamless carousel loop). Applies to
+  // line AND arc paths (ring wraps intrinsically via its angle).
   if (p.wrap && p.count > 0) {
     offset = ((offset % p.count) + p.count) % p.count;
     if (offset > p.count / 2) offset -= p.count;

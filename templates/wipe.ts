@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { loopCycles } from '@/lib/motion';
 import { variant } from './variant';
 
 // Wipe — full-frame images revealed by a directional push. The incoming
@@ -7,7 +8,7 @@ import { variant } from './variant';
 const BASE = 340;
 
 const wipe: Template = {
-  meta: { id: 'wipe-01', name: 'Wipe 01', group: 'Wipe', defaultEasing: { id: 'linear' } },
+  meta: { id: 'wipe-01', name: 'Takeover 01', group: 'Takeover', defaultEasing: { id: 'linear' } },
 
   controls: [
     { key: 'count',        label: 'Count',         type: 'slider', min: 2, max: 8, step: 1,     default: 4 },
@@ -22,7 +23,7 @@ const wipe: Template = {
     // full-bleed cover scale so the image fills the frame
     const scale = (ctx.height / BASE) * 1.15 * (v.zoom / 100);
 
-    const phase = ctx.easedPhase((frame / ctx.fps) * v.speed);
+    const phase = ctx.easedPhase((frame / ctx.totalFrames) * loopCycles(v.speed, ctx.duration, count));
     // lifecycle w ∈ [0, count): 0 = this image just fully arrived at centre
     const w = (((phase - index) % count) + count) % count;
 
@@ -54,10 +55,10 @@ const wipe: Template = {
 
 export const wipeVariants: Template[] = [
   wipe, // Wipe 01 — push from the left
-  variant(wipe, 'wipe-02', 'Wipe 02', {
+  variant(wipe, 'wipe-02', 'Takeover 02', {
     direction: 'up', zoom: 120, speed: 0.9,
   }),
-  variant(wipe, 'wipe-03', 'Wipe 03', {
+  variant(wipe, 'wipe-03', 'Takeover 03', {
     count: 6, direction: 'right', zoom: 100, speed: 0.5,
   }),
 ];

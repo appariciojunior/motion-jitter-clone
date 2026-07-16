@@ -27,17 +27,6 @@ export default function IconRail() {
           </button>
         ))}
       </div>
-      <div className="rail-bottom">
-        <button className="rail-ghost" title="Notifications">
-          <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><path d="M10 3a5 5 0 00-5 5v3l-1.5 2.5h13L15 11V8a5 5 0 00-5-5zM8.5 16a1.5 1.5 0 003 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        </button>
-        <button className="rail-ghost" title="More">
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><circle cx="5" cy="10" r="1.4" fill="currentColor"/><circle cx="10" cy="10" r="1.4" fill="currentColor"/><circle cx="15" cy="10" r="1.4" fill="currentColor"/></svg>
-        </button>
-        <div className="rail-avatar">
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M4 17c0-3 3-5 6-5s6 2 6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-        </div>
-      </div>
     </aside>
   );
 }

@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { loopCycles } from '@/lib/motion';
 import { variant } from './variant';
 
 const BASE = 340;
@@ -7,7 +8,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 // Spiral — the camera corkscrews through a helix of cards (DNA / spiral
 // staircase): continuous rotation around the axis plus looping vertical travel.
 const spiral: Template = {
-  meta: { id: 'spiral-01', name: 'Spiral 01', group: 'Spiral', defaultEasing: { id: 'linear' } },
+  meta: { id: 'spiral-01', name: 'Helix 01', group: 'Helix', defaultEasing: { id: 'linear' } },
 
   controls: [
     { key: 'direction',    label: 'Direction',     type: 'toggle', options: ['forward','reverse'], default: 'forward' },
@@ -23,7 +24,9 @@ const spiral: Template = {
 
   transform: (frame, index, count, v, ctx) => {
     const dir = v.direction === 'reverse' ? -1 : 1;
-    const t = (frame / ctx.fps) * v.speed * dir;
+    // Both the helix angle and the vertical travel have period t=1, so lock
+    // the clip to a whole number of helix cycles.
+    const t = (frame / ctx.totalFrames) * loopCycles(v.speed, ctx.duration) * dir;
     const sizeFactor = v.cardSize / BASE;
 
     // Angle around the helix axis.
@@ -53,13 +56,13 @@ const spiral: Template = {
 
 export const spiralVariants: Template[] = [
   spiral, // Spiral 01 — classic staircase
-  variant(spiral, 'spiral-02', 'Spiral 02', {
+  variant(spiral, 'spiral-02', 'Helix 02', {
     turns: 5, radius: 200, pitch: 30,
   }),
-  variant(spiral, 'spiral-03', 'Spiral 03', {
+  variant(spiral, 'spiral-03', 'Helix 03', {
     turns: 2, radius: 480, pitch: 70, count: 30,
   }),
-  variant(spiral, 'spiral-04', 'Spiral 04', {
+  variant(spiral, 'spiral-04', 'Helix 04', {
     turns: 6, radius: 140, pitch: 20, count: 60, cardSize: 80,
   }),
 ];

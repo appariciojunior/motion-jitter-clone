@@ -31,3 +31,34 @@ export function staggered(t: number, index: number, count: number, amount: numbe
   const u = count > 1 ? index / (count - 1) : 0;
   return frac(t + u * amount);
 }
+
+// Quantize a units/sec speed so a full clip covers a whole number of motif
+// periods — the guarantee that frame totalFrames ≡ frame 0 (seamless loops in
+// preview and export). `period` is the phase distance after which the template
+// repeats: 1 for most conveyors, `count` for lifecycle templates whose state
+// wraps every count units (scale, stack). Returns total phase units per clip;
+// use as: phase = easedPhase((frame / ctx.totalFrames) * loopCycles(...)).
+export function loopCycles(speed: number, duration: number, period = 1): number {
+  if (speed === 0) return 0;
+  const laps = Math.max(1, Math.round((Math.abs(speed) * duration) / period));
+  return Math.sign(speed) * laps * period;
+}
+
+// Remap a phase so each unit step holds still for `hold`∈[0,1) of the step,
+// then eases across the remainder with `shape`. f(n)=n at integers, so it is
+// loop-safe. Used for stepped marquee/ticker motion.
+export function stepHold(p: number, hold: number, shape: (t: number) => number = smooth): number {
+  const u = frac(p);
+  const h = clamp(hold, 0, 0.95);
+  return Math.floor(p) + (u <= h ? 0 : shape((u - h) / (1 - h)));
+}
+
+// Deterministic 2D hash → [0,1). Seeded-random scatter that is stable across
+// frames and reproducible for a given (index, seed) pair.
+export const hash2 = (a: number, b: number) =>
+  frac(Math.sin(a * 127.1 + b * 311.7 + 1.7) * 43758.5453);
+
+// Which asset a layer slot shows. Templates with meta.repeatAssets cycle a
+// small image set across many layers; everything else binds 1:1.
+export const assetIndexForSlot = (slot: number, assetCount: number, repeat: boolean) =>
+  repeat && assetCount > 0 ? slot % assetCount : slot;

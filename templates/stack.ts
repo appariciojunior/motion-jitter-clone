@@ -1,5 +1,5 @@
 import type { Template } from '@/lib/types';
-import { frac, clamp, smooth } from '@/lib/motion';
+import { frac, clamp, smooth, loopCycles } from '@/lib/motion';
 import { variant } from './variant';
 
 const BASE = 340;
@@ -11,13 +11,14 @@ const BASE = 340;
 // rather than as a rigid block. The exiting card stays opaque and fades only in
 // the last 10% of its travel (no fade-from-top, no hard cut).
 const stack: Template = {
-  meta: { id: 'stack-01', name: 'Stack 01', group: 'Stack', defaultEasing: { id: 'smooth' } },
+  meta: { id: 'stack-01', name: 'Shuffle 01', group: 'Shuffle', defaultEasing: { id: 'smooth' } },
 
   controls: [
     { key: 'direction',    label: 'Direction',     type: 'toggle', options: ['down','up'], default: 'down' },
     { key: 'count',        label: 'Count',         type: 'slider', min: 2, max: 20, step: 1,   default: 6 },  // pool that cycles
     { key: 'visible',      label: 'Visible',       type: 'slider', min: 2, max: 8, step: 1,    default: 3 },  // cards shown in the stack
     { key: 'cardSize',     label: 'Plane Size',    type: 'slider', min: 50, max: 800, step: 1, default: 300 },
+    { key: 'zoom',         label: 'Zoom',          type: 'slider', min: 50, max: 300, step: 1, default: 100 }, // whole-deck scale %
     { key: 'cornerRadius', label: 'Corner Radius', type: 'slider', min: 0, max: 100, step: 1,  default: 12 },
     { key: 'perspective',  label: 'Perspective',   type: 'slider', min: 0, max: 1000, step: 1, default: 0 }, // extra vertical gap between slots
     { key: 'stagger',      label: 'Stagger',       type: 'slider', min: 0, max: 0.5, step: 0.01, default: 0.14 }, // per-card delay
@@ -28,12 +29,13 @@ const stack: Template = {
   transform: (frame, index, count, v, ctx) => {
     const n = Math.max(1, Math.round(count));
     const dir = v.direction === 'up' ? -1 : 1;
-    const sizeFactor = v.cardSize / BASE;
+    const sizeFactor = (v.cardSize / BASE) * ((v.zoom ?? 100) / 100); // zoom scales the whole deck
     const stepY = v.cardSize * 0.31 + v.perspective * 0.30;   // px gap between stacked slots
     const vis = Math.min(Math.round(v.visible), n);
 
-    // Stepped pointer: advances one card per (1/speed) seconds.
-    const pointer = (frame / ctx.fps) * v.speed;
+    // Stepped pointer: advances one card per (1/speed) seconds. The cycle
+    // repeats every `n` steps — loop-lock to whole deck rotations per clip.
+    const pointer = (frame / ctx.totalFrames) * loopCycles(v.speed, ctx.duration, n);
     const base = Math.floor(pointer);
     const s = frac(pointer);                                  // progress through the current step, 0..1
 
@@ -90,7 +92,7 @@ const stack: Template = {
 
 export const stackVariants: Template[] = [
   stack, // Stack 01 — deck advance with anticipation
-  variant(stack, 'stack-02', 'Stack 02', {
+  variant(stack, 'stack-02', 'Shuffle 02', {
     visible: 4, stagger: 0.24, perspective: 0, speed: 0.4,
   }),
 ];

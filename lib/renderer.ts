@@ -4,6 +4,7 @@ import { getTemplate } from '@/templates';
 import { getEffect } from '@/effects';
 import { useSceneStore, type SceneState } from '@/store/useSceneStore';
 import { resolveEasing } from '@/lib/easing';
+import { assetIndexForSlot } from '@/lib/motion';
 
 // Reference base long-edge (px) shared with templates (carousel BASE = 340),
 // so control values read directly in on-screen pixels.
@@ -111,12 +112,15 @@ export class SceneRenderer {
   }
 
   // Rebuild the sprite pool to match count; slot i binds to asset i (positional,
-  // 1:1 with the Assets panel). Empty/hidden slots fall back to a numbered card.
+  // 1:1 with the Assets panel), or to asset i % assets.length when the template
+  // opts into repeatAssets (high-count fields). Empty/hidden slots fall back to
+  // a numbered card.
   syncAssets() {
     if (!this.ready) return;
     const s = useSceneStore.getState();
     const count = Math.max(1, Math.round(s.values.count ?? 6));
-    const assetSig = s.assets.map((a) => a.id + ':' + a.url + ':' + a.visible).join('|');
+    const repeat = getTemplate(s.activeTemplateId).meta.repeatAssets === true;
+    const assetSig = (repeat ? 'R|' : '') + s.assets.map((a) => a.id + ':' + a.url + ':' + a.visible).join('|');
 
     if (count === this.lastCountSig && assetSig === this.lastAssetSig) return;
     this.lastCountSig = count;
@@ -143,9 +147,10 @@ export class SceneRenderer {
       slot.sprite.destroy({ children: true });
     }
 
-    // assign textures — slot i ↔ asset i; missing/hidden → numbered placeholder
+    // assign textures — slot i ↔ asset i (or i % assets.length when repeating);
+    // missing/hidden → numbered placeholder
     this.slots.forEach((slot, i) => {
-      const asset = s.assets[i];
+      const asset = s.assets[assetIndexForSlot(i, s.assets.length, repeat)];
       if (!asset || !asset.visible) {
         slot.sprite.texture = this.placeholder;
         slot.sprite.tint = PLACEHOLDER_FILL;
@@ -168,6 +173,15 @@ export class SceneRenderer {
     const frac = Math.max(0, Math.min(1, cornerRadiusPct / 100));
     if (slot.cornerR === frac) return; // cached
     slot.cornerR = frac;
+    if (frac === 0) {
+      // no rounding → drop the stencil mask entirely (matters at high counts)
+      slot.sprite.mask = null;
+      slot.mask.visible = false;
+      slot.mask.clear();
+      return;
+    }
+    slot.sprite.mask = slot.mask;
+    slot.mask.visible = true;
     const w = slot.texW, h = slot.texH;
     const r = (Math.min(w, h) / 2) * frac;
     slot.mask.clear();
@@ -301,7 +315,12 @@ export class SceneRenderer {
       const base = Math.floor(phase);
       return base + ease(phase - base);
     };
-    const ctx = { fps: s.fps, width: s.width, height: s.height, ease, easedPhase };
+    const ctx = {
+      fps: s.fps, width: s.width, height: s.height,
+      duration: s.duration,
+      totalFrames: Math.max(1, Math.round(s.duration * s.fps)),
+      ease, easedPhase,
+    };
 
     // Track the featured (front-most) card so a 'card' background can reflect it.
     let featured: { tex: PIXI.Texture; x: number; y: number } | null = null;

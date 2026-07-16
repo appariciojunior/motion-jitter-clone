@@ -10,6 +10,10 @@ export const maxDuration = 300;
 
 const EXPORTS_DIR = path.join(process.cwd(), 'public', 'exports');
 
+// sessionId/index/fps feed into filesystem paths and ffmpeg filter strings —
+// accept only the exact shapes we generate ourselves.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 function sessionDir(id: string) {
   return path.join(os.tmpdir(), `motion-export-${id}`);
 }
@@ -41,15 +45,23 @@ export async function POST(req: NextRequest) {
 
     if (action === 'frame') {
       const { sessionId, index, dataUrl } = body;
+      const idx = Number(index);
+      if (!UUID_RE.test(String(sessionId)) || !Number.isInteger(idx) || idx < 0 || idx > 99999) {
+        return NextResponse.json({ error: 'bad params' }, { status: 400 });
+      }
       const dir = sessionDir(sessionId);
       const base64 = String(dataUrl).replace(/^data:image\/png;base64,/, '');
-      const file = path.join(dir, `frame_${String(index).padStart(5, '0')}.png`);
+      const file = path.join(dir, `frame_${String(idx).padStart(5, '0')}.png`);
       await fs.writeFile(file, Buffer.from(base64, 'base64'));
       return NextResponse.json({ ok: true });
     }
 
     if (action === 'encode') {
-      const { sessionId, fps, format, audio, width, height } = body;
+      const { sessionId, format, audio, width, height } = body;
+      const fps = Number(body.fps);
+      if (!UUID_RE.test(String(sessionId)) || !Number.isFinite(fps) || fps <= 0 || fps > 120) {
+        return NextResponse.json({ error: 'bad params' }, { status: 400 });
+      }
       const dir = sessionDir(sessionId);
       const pattern = path.join(dir, 'frame_%05d.png');
       await fs.mkdir(EXPORTS_DIR, { recursive: true });

@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { clamp, loopCycles } from '@/lib/motion';
 import { cardPath } from '@/lib/cardPath';
 
 // Reference size (px) shared with the renderer's sprite normalization, so that
@@ -6,7 +7,7 @@ import { cardPath } from '@/lib/cardPath';
 const BASE = 340;
 
 export const carousel: Template = {
-  meta: { id: 'carousel', name: 'Carousel', group: 'Carousel', defaultEasing: { id: 'glide' } },
+  meta: { id: 'carousel', name: 'Runway', group: 'Runway', defaultEasing: { id: 'glide' } },
 
   controls: [
     // Four-way direction (as in the reference tool): left/right run the strip
@@ -17,7 +18,10 @@ export const carousel: Template = {
     { key: 'cornerRadius', label: 'Corner Radius', type: 'slider', min: 0, max: 100, step: 1,  default: 12 },
     { key: 'gap',          label: 'Gap',           type: 'slider', min: 0, max: 600, step: 1,  default: 360 }, // px between card centres (at base size)
     { key: 'bigScale',     label: 'Big Scale',     type: 'slider', min: 100, max: 200, step: 1, default: 120 }, // featured card size %
+    { key: 'scaleFocus',   label: 'Scale Focus',   type: 'pills', options: ['center','start','end'], default: 'center' }, // where the featured card sits
     { key: 'perspective',  label: 'Perspective',   type: 'slider', min: 0, max: 200, step: 1,  default: 0 },
+    { key: 'tiltStyle',    label: 'Tilt Style',    type: 'pills', options: ['off','fan','uniform','alternate'], default: 'off' },
+    { key: 'tiltAmount',   label: 'Tilt Amount',   type: 'slider', min: 0, max: 30, step: 1,   default: 8 },   // degrees
     { key: 'offset',       label: 'Offset',        type: 'xypad',                              default: { x: 0, y: 0 } },
     { key: 'fade',         label: 'Fade',          type: 'slider', min: 0, max: 100, step: 1,  default: 0 },   // centre-distance fade %
     { key: 'outerFade',    label: 'Outer Fade',    type: 'slider', min: 0, max: 100, step: 1,  default: 100 }, // fade out while leaving the frame %
@@ -27,7 +31,7 @@ export const carousel: Template = {
   transform: (frame, index, count, v, ctx) => {
     const horiz = v.direction === 'left' || v.direction === 'right';
     const dir = (v.direction === 'left' || v.direction === 'up') ? 1 : -1;
-    const phase = ctx.easedPhase((frame / ctx.fps) * v.speed * dir); // ← Speed + Direction + Easing
+    const phase = ctx.easedPhase((frame / ctx.totalFrames) * loopCycles(v.speed, ctx.duration, count) * dir); // ← Speed + Direction + Easing
 
     // Cards recycle seamlessly (wrap). Featuredness peaks at centre.
     const p = cardPath({ kind: 'line', index, count, phase, gap: 1, wrap: true });
@@ -39,8 +43,24 @@ export const carousel: Template = {
     const x = (horiz ? pos : 0) + v.offset.x;                    // ← Offset X
     const y = (horiz ? 0 : pos) + v.offset.y;                    // ← Offset Y
 
+    // Scale Focus: shift the featuredness peak toward the entry (start) or
+    // exit (end) side of travel. dir=+1 means cards enter on the positive side.
+    const shift = Math.max(0, count / 2 - 1.5);
+    const focusOff =
+      v.scaleFocus === 'start' ? dir * shift :
+      v.scaleFocus === 'end'   ? -dir * shift : 0;
+    const featured = Math.max(0, 1 - Math.abs(offset - focusOff));
+
     // Featured card grows toward Big Scale; others sit at 1.0                    ← Big Scale
-    let scale = sizeFactor * (1 + (v.bigScale / 100 - 1) * p.featuredness);      // ← Plane Size
+    let scale = sizeFactor * (1 + (v.bigScale / 100 - 1) * featured);            // ← Plane Size
+
+    // Tilt Style: fan = tilt ∝ signed centre distance; uniform = constant;
+    // alternate = ±tilt by card parity.                                          ← Tilt
+    const tiltRad = (v.tiltAmount * Math.PI) / 180;
+    const rotation =
+      v.tiltStyle === 'fan'       ? clamp(offset, -3, 3) * tiltRad * 0.5 :
+      v.tiltStyle === 'uniform'   ? tiltRad :
+      v.tiltStyle === 'alternate' ? (index % 2 ? -tiltRad : tiltRad) : 0;
 
     // Perspective: off-centre cards shrink and skew away from centre, along
     // the travel axis (skewX for horizontal strips, skewY for vertical).       ← Perspective
@@ -66,11 +86,11 @@ export const carousel: Template = {
       x,
       y,
       scale,
-      rotation: 0,
+      rotation,
       alpha,
       skewX: horiz ? skew : 0,
       skewY: horiz ? 0 : skew,
-      depth: p.depthNorm,                                        // draw nearer cards on top
+      depth: p.depthNorm + featured,                             // featured card always wins the draw order
     };
     // cornerRadius is applied where the sprite mask is built, not here.          ← Corner Radius
   },

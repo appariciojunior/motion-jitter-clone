@@ -99,16 +99,6 @@ input[type=range] { -webkit-appearance: none; appearance: none; background: none
 .rail-item.active { background: var(--card-inset); color: var(--fg); }
 .rail-ico { width: 20px; height: 20px; display: grid; place-items: center; }
 .rail-label { font-size: 8px; line-height: 10px; font-weight: 600; }
-.rail-bottom { padding: 10px 0 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.rail-ghost {
-  width: 40px; height: 40px; border-radius: var(--r-nav); color: var(--fg-faint);
-  display: grid; place-items: center; transition: color var(--t-fast);
-}
-.rail-ghost:hover { color: var(--fg-muted); }
-.rail-avatar {
-  width: 30px; height: 30px; border-radius: 15px; background: var(--card-inset);
-  display: grid; place-items: center; color: var(--fg-muted);
-}
 
 /* ============================================================
    TEMPLATES CARD — header pad 14/12/10, tabs + search h34

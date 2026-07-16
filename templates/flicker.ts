@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { loopCycles } from '@/lib/motion';
 import { variant } from './variant';
 
 const BASE = 340;
@@ -7,7 +8,7 @@ const BASE = 340;
 // a scale pop or a directional drift to the outgoing card (per the reference
 // tool's Pacing / Effect / Drift controls).
 const flicker: Template = {
-  meta: { id: 'flicker-01', name: 'Flicker 01', group: 'Flicker', defaultEasing: { id: 'linear' } },
+  meta: { id: 'flicker-01', name: 'Pulse 01', group: 'Pulse', defaultEasing: { id: 'linear' } },
 
   controls: [
     { key: 'pacing',       label: 'Pacing',        type: 'toggle', options: ['equal','eased'], default: 'equal' },
@@ -22,7 +23,7 @@ const flicker: Template = {
   ],
 
   transform: (frame, index, count, v, ctx) => {
-    const phase = ctx.easedPhase((frame / ctx.fps) * v.speed);
+    const phase = ctx.easedPhase((frame / ctx.totalFrames) * loopCycles(v.speed, ctx.duration, count));
 
     // lifecycle w ∈ [0, count): 0 = this card just became active
     const w = (((phase - index) % count) + count) % count;
@@ -60,7 +61,7 @@ const flicker: Template = {
 
 export const flickerVariants: Template[] = [
   flicker, // Flicker 01 — clean crossfade
-  variant(flicker, 'flicker-02', 'Flicker 02', {
+  variant(flicker, 'flicker-02', 'Pulse 02', {
     effect: 'drift', driftDir: 'up', driftAmount: 60, pacing: 'eased', speed: 1,
   }),
 ];

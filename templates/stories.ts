@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { loopCycles } from '@/lib/motion';
 import { cardPath } from '@/lib/cardPath';
 import { variant } from './variant';
 
@@ -7,7 +8,7 @@ const BASE = 340;
 // Stories — a horizontal strip with one dominant featured card and small
 // neighbours peeking at the edges. Flat (no fake-3D), fades to the sides.
 const stories: Template = {
-  meta: { id: 'stories-01', name: 'Stories 01', group: 'Stories', defaultEasing: { id: 'linear' } },
+  meta: { id: 'stories-01', name: 'Spotlight 01', group: 'Spotlight', defaultEasing: { id: 'linear' } },
 
   controls: [
     { key: 'direction',    label: 'Direction',     type: 'toggle', options: ['forward','reverse'], default: 'forward' },
@@ -23,7 +24,7 @@ const stories: Template = {
 
   transform: (frame, index, count, v, ctx) => {
     const dir = v.direction === 'reverse' ? -1 : 1;
-    const phase = ctx.easedPhase((frame / ctx.fps) * v.speed * dir);
+    const phase = ctx.easedPhase((frame / ctx.totalFrames) * loopCycles(v.speed, ctx.duration, count) * dir);
     const sizeFactor = v.cardSize / BASE;
 
     const p = cardPath({ kind: 'line', index, count, phase, gap: 1, wrap: true });
@@ -45,7 +46,7 @@ const stories: Template = {
 
 export const storiesVariants: Template[] = [
   stories, // Stories 01 — dominant centre
-  variant(stories, 'stories-02', 'Stories 02', {
+  variant(stories, 'stories-02', 'Spotlight 02', {
     gap: 30, bigScale: 210, fade: 65, cornerRadius: 24, speed: 0.3,
   }),
 ];

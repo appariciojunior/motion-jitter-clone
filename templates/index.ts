@@ -4,33 +4,38 @@ import { carousel } from './carousel';
 import { variant } from './variant';
 import { wheelVariants } from './wheel';
 import { orbitVariants } from './orbit';
+import { orbit3dVariants } from './orbit3d';
 import { stackVariants } from './stack';
 import { storiesVariants } from './stories';
-import { spinVariants } from './spin';
 import { flickerVariants } from './flicker';
-import { gridVariants } from './grid';
-import { threedVariants } from './threed';
 import { fieldVariants } from './field';
 import { wipeVariants } from './wipe';
 import { globeVariants } from './globe';
-import { coverflowVariants } from './coverflow';
 import { spiralVariants } from './spiral';
 import { tourVariants } from './tour';
-import { magazineVariants } from './magazine';
 import { gravityVariants } from './gravity';
 import { parallaxVariants } from './parallax';
-import { deckVariants } from './deck';
-import { flipVariants } from './flip';
-import { marqueeVariants } from './marquee';
 import { scaleVariants } from './scale';
 import { proximityVariants } from './proximity';
-import { framesVariants } from './frames';
+import { storiesFocusVariants } from './storiesFocus';
+import { zoomVariants } from './zoom';
+import { scatterVariants } from './scatter';
+import { revealVariants } from './reveal';
 import { blankVariants } from './blank';
 
 const carouselVariants: Template[] = [
-  { ...carousel, meta: { ...carousel.meta, name: 'Carousel 01' } },
-  variant(carousel, 'carousel-02', 'Carousel 02', {
+  { ...carousel, meta: { ...carousel.meta, name: 'Runway 01' } },
+  variant(carousel, 'carousel-02', 'Runway 02', {
     gap: 140, bigScale: 145, perspective: 0, fade: 45, speed: 0.4,
+  }),
+  variant(carousel, 'carousel-03', 'Runway 03', {
+    tiltStyle: 'fan', tiltAmount: 10, gap: 300, bigScale: 130, speed: 0.5,
+  }),
+  variant(carousel, 'carousel-04', 'Runway 04', {
+    scaleFocus: 'start', bigScale: 160, gap: 260, fade: 30, direction: 'right',
+  }),
+  variant(carousel, 'carousel-05', 'Runway 05', {
+    tiltStyle: 'alternate', tiltAmount: 6, direction: 'up', gap: 420, cornerRadius: 24,
   }),
 ];
 
@@ -38,28 +43,24 @@ const carouselVariants: Template[] = [
 export const templateList: Template[] = [
   ...carouselVariants,
   ...orbitVariants,
+  ...orbit3dVariants,
   ...stackVariants,
-  ...threedVariants,
   ...wheelVariants,
   ...fieldVariants,
   ...wipeVariants,
   ...storiesVariants,
-  ...spinVariants,
+  ...storiesFocusVariants,
   ...flickerVariants,
   ...globeVariants,
-  ...coverflowVariants,
-  ...gridVariants,
   ...spiralVariants,
   ...tourVariants,
-  ...magazineVariants,
   ...gravityVariants,
   ...parallaxVariants,
-  ...deckVariants,
-  ...flipVariants,
-  ...marqueeVariants,
+  ...scatterVariants,
   ...scaleVariants,
+  ...zoomVariants,
   ...proximityVariants,
-  ...framesVariants,
+  ...revealVariants,
   ...blankVariants,
 ];
 

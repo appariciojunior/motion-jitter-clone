@@ -2,22 +2,27 @@
 
 import { useEffect, useRef } from 'react';
 import { SceneRenderer } from '@/lib/renderer';
+import type { IRenderer } from '@/lib/rendererTypes';
 import { setRendererInstance } from '@/lib/rendererInstance';
 import { useSceneStore } from '@/store/useSceneStore';
+import { getTemplate } from '@/templates';
 
 export default function PreviewStage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rendererRef = useRef<SceneRenderer | null>(null);
+  const rendererRef = useRef<IRenderer | null>(null);
   const rafRef = useRef<number>(0);
   const anchorTimeRef = useRef<number>(0);   // wall-clock at playback start
   const anchorFrameRef = useRef<number>(0);  // frame at playback start
 
   const width = useSceneStore((s) => s.width);
   const height = useSceneStore((s) => s.height);
+  // Engine flag drives a full canvas remount — a canvas can never be reused
+  // across GL libraries (context attributes and loss behaviour differ).
+  const engine = useSceneStore((s) => getTemplate(s.activeTemplateId).meta.engine ?? 'pixi');
 
   useEffect(() => {
     let mounted = true;
-    const r = new SceneRenderer();
+    let renderer: IRenderer | null = null;
 
     const loop = () => {
       const st = useSceneStore.getState();
@@ -35,29 +40,33 @@ export default function PreviewStage() {
       } else {
         anchorTimeRef.current = 0;
       }
-      const rr = rendererRef.current;
-      if (rr) {
-        rr.getFrameState(frame);
-        rr.app.renderer.render(rr.app.stage);
-      }
+      rendererRef.current?.renderFrame(frame); // engine-agnostic realize + draw
       rafRef.current = requestAnimationFrame(loop);
     };
 
-    r.init(canvasRef.current!).then(() => {
-      if (!mounted) { r.destroy(); return; }
-      rendererRef.current = r;
-      setRendererInstance(r);
+    (async () => {
+      if (engine === 'webgl') {
+        // three stays out of the bundle for 2D-only sessions
+        const { SceneRenderer3D } = await import('@/lib/renderer3d');
+        renderer = new SceneRenderer3D();
+      } else {
+        renderer = new SceneRenderer();
+      }
+      await renderer.init(canvasRef.current!);
+      if (!mounted) { renderer.destroy(); return; }
+      rendererRef.current = renderer;
+      setRendererInstance(renderer);
       rafRef.current = requestAnimationFrame(loop);
-    });
+    })();
 
     return () => {
       mounted = false;
       cancelAnimationFrame(rafRef.current);
       setRendererInstance(null);
       rendererRef.current = null;
-      r.destroy();
+      renderer?.destroy();
     };
-  }, []);
+  }, [engine]);
 
   // live resize on aspect/fps-driven dimension changes
   useEffect(() => {
@@ -66,7 +75,7 @@ export default function PreviewStage() {
 
   return (
     <div className="stage-wrap">
-      <canvas ref={canvasRef} className="stage-canvas" />
+      <canvas key={engine} ref={canvasRef} className="stage-canvas" />
     </div>
   );
 }

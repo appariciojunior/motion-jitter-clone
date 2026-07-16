@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { loopCycles } from '@/lib/motion';
 import { variant } from './variant';
 
 // Parallax — a multi-layer image wall with depth. The camera pans
@@ -9,7 +10,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const h = (k: number) => { const s = Math.sin(k * 127.1 + 1.7) * 43758.5453; return s - Math.floor(s); };
 
 const parallax: Template = {
-  meta: { id: 'parallax-01', name: 'Parallax 01', group: 'Parallax', defaultEasing: { id: 'smooth' } },
+  meta: { id: 'parallax-01', name: 'Drift 01', group: 'Drift', defaultEasing: { id: 'smooth' } },
 
   controls: [
     { key: 'count',        label: 'Count',         type: 'slider', min: 3, max: 16, step: 1,    default: 9 },
@@ -32,11 +33,14 @@ const parallax: Template = {
     const pSpeed = lerp(0.25, 1, layer); // near layers scroll faster
 
     const dir = v.direction === 'reverse' ? -1 : 1;
-    const t = ctx.easedPhase((frame / ctx.fps) * v.speed * dir);
 
-    // horizontal scatter + scroll, wrapped across the field span
+    // horizontal scatter + scroll, wrapped across the field span. Each layer
+    // scrolls at its own depth-proportional rate, so each card's wrap count is
+    // quantized separately — every card returns exactly at the loop point.
     const span = count * v.gap * sizeFactor;
-    const raw = index * v.gap * sizeFactor - t * ctx.width * pSpeed;
+    const wraps = Math.max(1, Math.round((v.speed * ctx.duration * ctx.width * pSpeed) / span));
+    const t = ctx.easedPhase((frame / ctx.totalFrames) * wraps) * dir;
+    const raw = index * v.gap * sizeFactor - t * span;
     const x = (((raw % span) + span) % span) - span / 2 + v.offset.x;
 
     // vertical placement by layer with a little deterministic scatter
@@ -55,7 +59,7 @@ const parallax: Template = {
 
 export const parallaxVariants: Template[] = [
   parallax,
-  variant(parallax, 'parallax-02', 'Parallax 02', { count: 12, spreadY: 380, speed: 0.8 }),
-  variant(parallax, 'parallax-03', 'Parallax 03', { count: 6, spreadY: 140, speed: 0.35 }),
-  variant(parallax, 'parallax-04', 'Parallax 04', { count: 16, spreadY: 460, speed: 1.1 }),
+  variant(parallax, 'parallax-02', 'Drift 02', { count: 12, spreadY: 380, speed: 0.8 }),
+  variant(parallax, 'parallax-03', 'Drift 03', { count: 6, spreadY: 140, speed: 0.35 }),
+  variant(parallax, 'parallax-04', 'Drift 04', { count: 16, spreadY: 460, speed: 1.1 }),
 ];

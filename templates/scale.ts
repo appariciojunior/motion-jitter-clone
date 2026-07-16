@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { loopCycles } from '@/lib/motion';
 import { variant } from './variant';
 
 // Scale — a Ken-Burns zoom slideshow. One image at a time pushes IN (or
@@ -9,7 +10,7 @@ const BASE = 340;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 const scale: Template = {
-  meta: { id: 'scale-01', name: 'Scale 01', group: 'Scale', defaultEasing: { id: 'custom', bezier: [0, 0, 0, 0.99] } },
+  meta: { id: 'scale-01', name: 'Dive 01', group: 'Dive', defaultEasing: { id: 'custom', bezier: [0, 0, 0, 0.99] } },
 
   controls: [
     { key: 'count',        label: 'Count',         type: 'slider', min: 2, max: 10, step: 1,    default: 5 },
@@ -27,8 +28,9 @@ const scale: Template = {
   transform: (frame, index, count, v, ctx) => {
     const sizeFactor = v.cardSize / BASE;
 
-    // lifecycle w ∈ [0, count): 0 = this card just became active
-    const phase = (frame / ctx.fps) * v.speed;
+    // lifecycle w ∈ [0, count): 0 = this card just became active.
+    // Period is `count` phase units — loop-lock to whole lifecycle laps.
+    const phase = (frame / ctx.totalFrames) * loopCycles(v.speed, ctx.duration, count);
     const w = (((phase - index) % count) + count) % count;
 
     // crossfade over one slot at each end
@@ -65,7 +67,7 @@ const scale: Template = {
 
 export const scaleVariants: Template[] = [
   scale,
-  variant(scale, 'scale-02', 'Scale 02', { anchor: 'tl', direction: 'in', zoom: 45 }),
-  variant(scale, 'scale-03', 'Scale 03', { anchor: 'br', direction: 'out', zoom: 55 }),
-  variant(scale, 'scale-04', 'Scale 04', { anchor: 'center', direction: 'in', zoom: 20, spin: 'on', spinAmt: 10 }),
+  variant(scale, 'scale-02', 'Dive 02', { anchor: 'tl', direction: 'in', zoom: 45 }),
+  variant(scale, 'scale-03', 'Dive 03', { anchor: 'br', direction: 'out', zoom: 55 }),
+  variant(scale, 'scale-04', 'Dive 04', { anchor: 'center', direction: 'in', zoom: 20, spin: 'on', spinAmt: 10 }),
 ];

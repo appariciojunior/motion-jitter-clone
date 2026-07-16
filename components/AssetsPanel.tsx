@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useSceneStore } from '@/store/useSceneStore';
+import { getTemplate } from '@/templates';
 
 const EyeIcon = ({ off }: { off?: boolean }) => (
   <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
@@ -18,6 +19,7 @@ const XIcon = () => (
 export default function AssetsPanel() {
   const assets = useSceneStore((s) => s.assets);
   const count = useSceneStore((s) => Math.max(1, Math.round(s.values.count ?? 1)));
+  const repeat = useSceneStore((s) => getTemplate(s.activeTemplateId).meta.repeatAssets === true);
   const addAssets = useSceneStore((s) => s.addAssets);
   const replaceAssetAt = useSceneStore((s) => s.replaceAssetAt);
   const removeAsset = useSceneStore((s) => s.removeAsset);
@@ -92,8 +94,11 @@ export default function AssetsPanel() {
   };
 
   // The list is sized by the template's `count` — one row per layer slot.
+  // Repeat-mode templates cycle a small image set across many layers, so the
+  // panel shows just the images plus one add-row instead of `count` slots.
   const filled = Math.min(assets.length, count);
-  const slots = Array.from({ length: count }, (_, i) => assets[i] ?? null);
+  const rows = repeat ? Math.min(count, assets.length + 1) : count;
+  const slots = Array.from({ length: rows }, (_, i) => assets[i] ?? null);
 
   return (
     <>
@@ -109,12 +114,16 @@ export default function AssetsPanel() {
           onDragLeave={() => setDropActive(false)}
           onDrop={(e) => { e.preventDefault(); setDropActive(false); ingest(e.dataTransfer.files); }}
         >
-          Drop images or click to fill {count} {count === 1 ? 'slot' : 'slots'}
+          {repeat ? 'Drop images — a few are enough, they repeat' : `Drop images or click to fill ${count} ${count === 1 ? 'slot' : 'slots'}`}
           <input ref={inputRef} type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && ingest(e.target.files)} />
         </div>
 
         <div className="asset-meta">
-          <span>{count} {count === 1 ? 'slot' : 'slots'} · linked to Count</span>
+          <span>
+            {repeat
+              ? `${assets.length || 'your'} image${assets.length === 1 ? '' : 's'} repeat across ${count} layers`
+              : `${count} ${count === 1 ? 'slot' : 'slots'} · linked to Count`}
+          </span>
           <span className="spacer" />
           {assets.length > 0 && <button className="link-btn" onClick={clearAssets}>Clear all</button>}
         </div>

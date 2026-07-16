@@ -38,7 +38,7 @@ function bounceHeight(tau: number, H: number, g: number, e: number): number {
 // and settle into a pile of columns at the bottom. Everything is a pure function
 // of `frame` via a closed-form bounce (no iterative sim reading prior frames).
 const gravity: Template = {
-  meta: { id: 'gravity-01', name: 'Gravity 01', group: 'Gravity', defaultEasing: { id: 'linear' } },
+  meta: { id: 'gravity-01', name: 'Bounce 01', group: 'Bounce', defaultEasing: { id: 'linear' } },
 
   controls: [
     { key: 'count',        label: 'Count',         type: 'slider', min: 2, max: 14, step: 1,     default: 8 },
@@ -54,7 +54,7 @@ const gravity: Template = {
   ],
 
   transform: (frame, index, count, v, ctx) => {
-    const T = frame / ctx.fps;
+    const T = frame / ctx.fps; // non-looping by design — physics drop settles and rests
     const sizeFactor = v.cardSize / BASE;
     const cardPx = v.cardSize * sizeFactor;     // scaled footprint used for spacing
 
@@ -125,11 +125,11 @@ const gravity: Template = {
 
 export const gravityVariants: Template[] = [
   gravity, // Gravity 01 — a measured drop with a soft bounce
-  variant(gravity, 'gravity-02', 'Gravity 02', {
+  variant(gravity, 'gravity-02', 'Bounce 02', {
     // Bouncy: springy restitution, little friction, tight fast stagger.
     bounce: 0.7, friction: 0.1, spin: 1.6, stagger: 0.1, spread: 600,
   }),
-  variant(gravity, 'gravity-03', 'Gravity 03', {
+  variant(gravity, 'gravity-03', 'Bounce 03', {
     // Slow-mo: low gravity, gentle spin, wide lazy scatter.
     gravity: 0.35, bounce: 0.3, friction: 0.5, spin: 0.5, stagger: 0.3, cardSize: 160,
   }),

@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { loopCycles } from '@/lib/motion';
 import { cardPath } from '@/lib/cardPath';
 import { variant } from './variant';
 
@@ -7,7 +8,7 @@ const BASE = 340;
 // Wheel — cards on a rotating ring (or a fan arc). Featured card is the one
 // nearest the top of the wheel; Spin Thumbs tilts cards along the tangent.
 const wheel: Template = {
-  meta: { id: 'wheel-01', name: 'Wheel 01', group: 'Wheel', defaultEasing: { id: 'flow' } },
+  meta: { id: 'wheel-01', name: 'Ferris 01', group: 'Ferris', defaultEasing: { id: 'flow' } },
 
   controls: [
     { key: 'direction',    label: 'Direction',     type: 'toggle', options: ['forward','reverse'], default: 'forward' },
@@ -25,25 +26,28 @@ const wheel: Template = {
 
   transform: (frame, index, count, v, ctx) => {
     const dir = v.direction === 'reverse' ? -1 : 1;
-    const phase = ctx.easedPhase((frame / ctx.fps) * v.speed * dir);
+    const phase = ctx.easedPhase((frame / ctx.totalFrames) * loopCycles(v.speed, ctx.duration, count) * dir);
     const sizeFactor = v.cardSize / BASE;
 
     const kind = v.mode === 'fan' ? 'arc' : 'ring';
+    // Fan wraps too: cards recycle through the arc window so the sweep loops
+    // seamlessly instead of drifting off the end of the arc.
     const p = cardPath({
       kind, index, count, phase,
       radius: v.radius,
       arcSpan: Math.PI * 0.9,
-      wrap: kind === 'ring',
+      wrap: true,
     });
 
     // tangent angle at this position (ring: from centre; fan: arc param)
     let angle = 0;
+    const off = ((index - phase) % count + count) % count;
     if (kind === 'ring') {
-      const off = ((index - phase) % count + count) % count;
       angle = (off / count) * Math.PI * 2;
     } else {
       const span = Math.PI * 0.9;
-      angle = -span / 2 + ((index - phase) + count / 2) * (span / count);
+      const offS = off > count / 2 ? off - count : off;
+      angle = -span / 2 + (offS + count / 2) * (span / count);
     }
 
     const scale = sizeFactor * (1 + (v.bigScale / 100 - 1) * p.featuredness);
@@ -62,15 +66,15 @@ const wheel: Template = {
 
 export const wheelVariants: Template[] = [
   wheel, // Wheel 01 — top fan, tilted thumbs
-  variant(wheel, 'wheel-02', 'Wheel 02', {
+  variant(wheel, 'wheel-02', 'Ferris 02', {
     mode: 'ring', count: 8, radius: 340, cardSize: 230, speed: 0.4,
     offset: { x: 0, y: 0 }, bigScale: 100,
   }),
-  variant(wheel, 'wheel-03', 'Wheel 03', {
+  variant(wheel, 'wheel-03', 'Ferris 03', {
     mode: 'ring', count: 12, radius: 380, cardSize: 130, speed: 0.7,
     offset: { x: 0, y: 0 }, bigScale: 125,
   }),
-  variant(wheel, 'wheel-04', 'Wheel 04', {
+  variant(wheel, 'wheel-04', 'Ferris 04', {
     mode: 'ring', count: 20, radius: 400, cardSize: 60, speed: 1,
     offset: { x: 0, y: 0 }, bigScale: 100, cornerRadius: 24,
   }),

@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { loopCycles } from '@/lib/motion';
 import { variant } from './variant';
 
 const BASE = 340;
@@ -24,7 +25,7 @@ const orbit: Template = {
 
   transform: (frame, index, count, v, ctx) => {
     const dir = v.direction === 'reverse' ? -1 : 1;
-    const phase = ctx.easedPhase((frame / ctx.fps) * v.speed * dir);
+    const phase = ctx.easedPhase((frame / ctx.totalFrames) * loopCycles(v.speed, ctx.duration, count) * dir);
     const ang = ((index - phase) / count) * Math.PI * 2;
 
     const x = Math.sin(ang) * v.radiusX;

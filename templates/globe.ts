@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { loopCycles } from '@/lib/motion';
 import { variant } from './variant';
 
 const BASE = 340;
@@ -21,7 +22,8 @@ const globe: Template = {
 
   transform: (frame, index, count, v, ctx) => {
     const dir = v.direction === 'reverse' ? -1 : 1;
-    const t = (frame / ctx.fps) * v.speed * dir;
+    // Revolutions per clip, loop-locked to a whole number (lon has period t=1).
+    const t = (frame / ctx.totalFrames) * loopCycles(v.speed, ctx.duration) * dir;
     const sizeFactor = v.cardSize / BASE;
 
     // Fibonacci sphere: even latitude bands, golden-angle longitude + spin.

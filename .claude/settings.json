@@ -57,7 +57,11 @@
       "Bash(node /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/welcome-test.mjs)",
       "Bash(ffmpeg -y -v error -i /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/welcome.png -vf \"crop=500:80:657:450,scale=1000:160\" /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/dash-zoom.png)",
       "Bash(node /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/readme-shot.mjs)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(npx esbuild *)",
+      "Bash(node /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/loopcheck.mjs)",
+      "Bash(node \"/private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/loopcheck.mjs\")",
+      "Bash(node /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/phase4-smoke.mjs)"
     ],
     "additionalDirectories": [
       "/Users/apparicio.junior/VSCode/Motion-Tool/public/exports"

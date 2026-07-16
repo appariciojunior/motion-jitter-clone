@@ -5,7 +5,7 @@ const BASE = 340;
 // Blank — a minimal empty starting canvas: a static, centred grid with no motion.
 // The transform ignores `frame` entirely, giving a still slate to build from.
 const blank: Template = {
-  meta: { id: 'blank-01', name: 'Blank 01', group: 'Blank', defaultEasing: { id: 'linear' } },
+  meta: { id: 'blank-01', name: 'Canvas 01', group: 'Canvas', defaultEasing: { id: 'linear' } },
 
   controls: [
     { key: 'count',        label: 'Count',         type: 'slider', min: 1, max: 12, step: 1,   default: 4 },

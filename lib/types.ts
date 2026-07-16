@@ -35,11 +35,27 @@ export interface LayerTransform {
   depth: number;     // sort order; higher = drawn on top / nearer
 }
 
+// ----- What a webgl template's transform3d returns for ONE layer -----
+// World units: 1 unit = 1 preview px on the z=0 plane; +z is toward the
+// camera; y follows canvas convention (down = positive), the renderer flips.
+export interface LayerTransform3D {
+  x: number;
+  y: number;
+  z: number;
+  rotationX?: number;  // radians
+  rotationY?: number;
+  rotationZ?: number;
+  scale: number;
+  alpha: number;
+}
+
 // ----- The transform context handed to every template each frame -----
 export interface TransformCtx {
   fps: number;
   width: number;
   height: number;
+  duration: number;     // clip length in seconds
+  totalFrames: number;  // max(1, round(duration * fps)) — the loop length
   // The scene's active easing curve, t∈[0,1] → y (see lib/easing).
   ease: (t: number) => number;
   // Remap a cyclic phase so each unit step is shaped by `ease`, keeping the
@@ -53,6 +69,8 @@ export interface Template {
   meta: {
     id: string; name: string; group: string; thumbnail?: string;
     defaultEasing?: EasingSpec;               // curve the template ships with
+    repeatAssets?: boolean;                   // slot i shows asset i % assets.length (high-count fields)
+    engine?: 'pixi' | 'webgl';                // renderer backend; default 'pixi'
   };
   controls: ControlDef[];                     // its FULL own set
   transform: (
@@ -62,6 +80,15 @@ export interface Template {
     values: Record<string, any>,              // current control values
     ctx: TransformCtx                          // canvas ctx + easing
   ) => LayerTransform;                         // PURE. no side effects.
+  // webgl templates additionally provide real-3D poses; the 2D transform
+  // stays as the thumbnail/fallback projection.
+  transform3d?: (
+    frame: number,
+    index: number,
+    count: number,
+    values: Record<string, any>,
+    ctx: TransformCtx
+  ) => LayerTransform3D;                       // PURE. no side effects.
 }
 
 // ----- An effect (SEAM 2) -----

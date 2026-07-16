@@ -9,7 +9,7 @@ import { resolveEasing } from '@/lib/easing';
 // and render the resulting card layout as plain divs. Because it uses the real
 // transform + declared defaults, thumbs always match the actual motion.
 const THUMB_FRAME = 40;              // ~1.3s in — mid-motion pose
-const CTX_BASE = { fps: 30, width: 810, height: 1080 }; // 3:4 preview space
+const CTX_BASE = { fps: 30, width: 810, height: 1080, duration: 8, totalFrames: 240 }; // 3:4 preview space, nominal 8s clip
 const TEX_W = 480, TEX_H = 600;      // placeholder texture proportions
 const SPRITE_BASE = 340;
 

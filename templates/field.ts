@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { loopCycles } from '@/lib/motion';
 import { variant } from './variant';
 
 const BASE = 340;
@@ -10,7 +11,7 @@ const h = (k: number) => { const s = Math.sin(k * 127.1 + 1.7) * 43758.5453; ret
 // camera at constant velocity. Near ones grow large and diverge outward, then
 // recycle from far to near.
 const field: Template = {
-  meta: { id: 'field-01', name: 'Field 01', group: 'Field', defaultEasing: { id: 'linear' } },
+  meta: { id: 'field-01', name: 'Warp 01', group: 'Warp', defaultEasing: { id: 'linear' }, repeatAssets: true },
 
   controls: [
     { key: 'count',        label: 'Count',         type: 'slider', min: 4, max: 40, step: 1,   default: 18 },
@@ -22,11 +23,12 @@ const field: Template = {
   ],
 
   transform: (frame, index, count, v, ctx) => {
-    const t = (frame / ctx.fps) * v.speed;
     const sizeFactor = v.cardSize / BASE;
 
-    // Depth position: 0 (far) → 1 (near), wrapping continuously.
-    const zRaw = index / count + t * 0.15;
+    // Depth position: 0 (far) → 1 (near), wrapping continuously. The drift
+    // rate (speed·0.15 laps/sec) is loop-locked to whole depth cycles per clip.
+    const laps = loopCycles(v.speed * 0.15, ctx.duration);
+    const zRaw = index / count + (frame / ctx.totalFrames) * laps;
     const zf = zRaw - Math.floor(zRaw);
 
     const scale = sizeFactor * lerp(0.15, 1.5, zf * zf);
@@ -53,13 +55,13 @@ const field: Template = {
 
 export const fieldVariants: Template[] = [
   field, // Field 01 — calm drift
-  variant(field, 'field-02', 'Field 02', {
+  variant(field, 'field-02', 'Warp 02', {
     count: 30, spread: 700, speed: 1.0,
   }),
-  variant(field, 'field-03', 'Field 03', {
+  variant(field, 'field-03', 'Warp 03', {
     count: 40, spread: 400, speed: 1.6, cardSize: 100,
   }),
-  variant(field, 'field-04', 'Field 04', {
+  variant(field, 'field-04', 'Warp 04', {
     count: 12, spread: 850, speed: 0.4, cardSize: 220,
   }),
 ];

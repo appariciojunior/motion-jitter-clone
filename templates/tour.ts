@@ -1,4 +1,5 @@
 import type { Template } from '@/lib/types';
+import { loopCycles } from '@/lib/motion';
 import { variant } from './variant';
 
 // Tour — a slow cinematic camera pan-and-zoom across a scattered collage,
@@ -9,7 +10,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const h = (k: number) => { const s = Math.sin(k * 127.1 + 1.7) * 43758.5453; return s - Math.floor(s); };
 
 const tour: Template = {
-  meta: { id: 'tour-01', name: 'Tour 01', group: 'Tour', defaultEasing: { id: 'smooth' } },
+  meta: { id: 'tour-01', name: 'Voyage 01', group: 'Voyage', defaultEasing: { id: 'smooth' } },
 
   controls: [
     { key: 'count',        label: 'Count',         type: 'slider', min: 4, max: 24, step: 1,    default: 14 },
@@ -29,11 +30,17 @@ const tour: Template = {
     const py = (h(index + 37.2) - 0.5) * v.spread;
     const cardBaseSize = sizeFactor * (0.7 + h(index + 5) * 0.6);
 
-    // slow smooth camera drift + gentle zoom breathing
-    const t = (frame / ctx.fps) * v.speed;
-    const camX = Math.sin(t * 0.7) * v.spread * 0.4;
-    const camY = Math.cos(t * 0.9) * v.spread * 0.3;
-    const camZoom = 1 + v.zoom / 100 * (0.5 + 0.5 * Math.sin(t * 0.6));
+    // slow smooth camera drift + gentle zoom breathing. Each oscillator gets
+    // its own whole number of revolutions per clip (loop-locked); the original
+    // 0.7/0.9/0.6 rad/s frequencies become the per-axis rev/sec ratios.
+    const u = frame / ctx.totalFrames;
+    const TAU = Math.PI * 2;
+    const n1 = loopCycles((v.speed * 0.7) / TAU, ctx.duration);
+    const n2 = loopCycles((v.speed * 0.9) / TAU, ctx.duration);
+    const n3 = loopCycles((v.speed * 0.6) / TAU, ctx.duration);
+    const camX = Math.sin(TAU * u * n1) * v.spread * 0.4;
+    const camY = Math.cos(TAU * u * n2) * v.spread * 0.3;
+    const camZoom = 1 + v.zoom / 100 * (0.5 + 0.5 * Math.sin(TAU * u * n3));
 
     // world → screen
     const x = (px - camX) * camZoom + v.offset.x;
@@ -58,7 +65,7 @@ const tour: Template = {
 
 export const tourVariants: Template[] = [
   tour,
-  variant(tour, 'tour-02', 'Tour 02', { spread: 700, zoom: 40, count: 18 }),
-  variant(tour, 'tour-03', 'Tour 03', { spread: 1400, zoom: 15, count: 10 }),
-  variant(tour, 'tour-04', 'Tour 04', { spread: 1000, zoom: 55, count: 24 }),
+  variant(tour, 'tour-02', 'Voyage 02', { spread: 700, zoom: 40, count: 18 }),
+  variant(tour, 'tour-03', 'Voyage 03', { spread: 1400, zoom: 15, count: 10 }),
+  variant(tour, 'tour-04', 'Voyage 04', { spread: 1000, zoom: 55, count: 24 }),
 ];

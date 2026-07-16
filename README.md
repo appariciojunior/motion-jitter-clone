@@ -50,6 +50,19 @@ scale/alpha/rotation/depth, register in `templates/index.ts`. The control panel,
 easing block, thumbnail, and export pick it up automatically. Same for effects
 (`effects/`).
 
+**Seamless loops.** Every template quantizes its speed to a whole number of
+motif cycles per clip via `loopCycles()` (`lib/motion.ts`), so frame 0 ≡ frame
+`totalFrames` and exported MP4/GIF loops never pop. Conveyor templates use
+`period = count` so textures land back on their own slots. Templates that are
+one-shot by design (Gravity) simply skip the helper. `meta.repeatAssets` lets
+high-count fields (Proximity, Marquee, Frames, Field, Scatter, Zoom) cycle a
+small image set across hundreds of layers.
+
+**Deliberately not implemented** (from the reference-tool analysis): per-lane
+offset sliders (a single lane-offset control covers it), a global `delay` param
+(in a perfect loop it is just a phase rotation), and `count=0` auto-fill
+(conflicts with the slot model; `repeatAssets` covers the intent).
+
 ## Easing
 
 Every template carries a cubic-bezier easing curve editable in the Easing block
