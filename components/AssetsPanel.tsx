@@ -28,7 +28,56 @@ export default function AssetsPanel() {
   const slotInputRef = useRef<HTMLInputElement>(null);
   const slotTarget = useRef<number>(0);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
+  // Pointer-based row drag (HTML5 DnD is unreliable: img elements hijack the
+  // drag and re-renders can cancel it). Drag arms after a 4px move so plain
+  // clicks (replace / hide / remove) keep working.
+  const drag = useRef<{ idx: number; startY: number; active: boolean } | null>(null);
+
+  const rowIndexAt = (x: number, y: number): number | null => {
+    const row = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-slot-idx]');
+    return row ? Number(row.dataset.slotIdx) : null;
+  };
+
+  const onRowPointerDown = (e: React.PointerEvent<HTMLLIElement>, i: number) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('button')) return; // eye / remove clicks
+    e.preventDefault(); // stop native image drag + text selection
+    drag.current = { idx: i, startY: e.clientY, active: false };
+  };
+
+  const onRowPointerMove = (e: React.PointerEvent<HTMLLIElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    if (!d.active) {
+      if (Math.abs(e.clientY - d.startY) < 4) return;
+      d.active = true;
+      setDragIdx(d.idx);
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    }
+    const over = rowIndexAt(e.clientX, e.clientY);
+    setOverIdx(over !== null && over !== d.idx ? over : null);
+  };
+
+  const onRowPointerUp = (e: React.PointerEvent<HTMLLIElement>) => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d?.active) return;
+    const over = rowIndexAt(e.clientX, e.clientY);
+    if (over !== null && over !== d.idx) {
+      // dropping past the filled range (an empty slot) moves the card to the end
+      reorderAssets(d.idx, Math.min(over, filled - 1));
+    }
+    setDragIdx(null);
+    setOverIdx(null);
+  };
+
+  const onRowPointerCancel = () => {
+    drag.current = null;
+    setDragIdx(null);
+    setOverIdx(null);
+  };
 
   const ingest = (files: FileList | File[]) => {
     const items = Array.from(files)
@@ -88,12 +137,12 @@ export default function AssetsPanel() {
             a ? (
               <li
                 key={a.id}
-                className={`asset-item ${dragIdx === i ? 'dragging' : ''}`}
-                draggable
-                onDragStart={() => setDragIdx(i)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => { if (dragIdx !== null && dragIdx !== i && dragIdx < filled) reorderAssets(dragIdx, i); setDragIdx(null); }}
-                onDragEnd={() => setDragIdx(null)}
+                data-slot-idx={i}
+                className={`asset-item ${dragIdx === i ? 'dragging' : ''} ${overIdx === i && dragIdx !== null && dragIdx !== i ? 'drop-target' : ''}`}
+                onPointerDown={(e) => onRowPointerDown(e, i)}
+                onPointerMove={onRowPointerMove}
+                onPointerUp={onRowPointerUp}
+                onPointerCancel={onRowPointerCancel}
               >
                 <span className="asset-idx">{i + 1}</span>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -107,7 +156,12 @@ export default function AssetsPanel() {
                 </button>
               </li>
             ) : (
-              <li key={`empty-${i}`} className="asset-item asset-empty" onClick={() => openSlotPicker(i)}>
+              <li
+                key={`empty-${i}`}
+                data-slot-idx={i}
+                className={`asset-item asset-empty ${overIdx === i && dragIdx !== null ? 'drop-target' : ''}`}
+                onClick={() => openSlotPicker(i)}
+              >
                 <span className="asset-idx">{i + 1}</span>
                 <span className="asset-thumb asset-thumb-empty">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>

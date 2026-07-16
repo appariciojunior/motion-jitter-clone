@@ -4,7 +4,7 @@ An **open-source factory for quick videos and GIFs**. Drag in images, pick a
 motion template, tweak live controls, preview in real time, and export MP4/GIF
 via native ffmpeg. Runs self-hosted on localhost — single machine, no auth.
 
-![UI](design-audit.png)
+![UI](ui.png)
 
 ## Stack
 

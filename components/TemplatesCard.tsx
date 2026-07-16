@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSceneStore } from '@/store/useSceneStore';
 import { templateList, templateGroups } from '@/templates';
 import TemplateThumb from './TemplateThumb';
@@ -14,9 +14,29 @@ const Chevron = ({ dir = 'right' }: { dir?: 'right' | 'left' }) => (
 export default function TemplatesCard() {
   const activeTemplateId = useSceneStore((s) => s.activeTemplateId);
   const setActiveTemplate = useSceneStore((s) => s.setActiveTemplate);
+  const customPresets = useSceneStore((s) => s.customPresets);
+  const loadCustomPresets = useSceneStore((s) => s.loadCustomPresets);
+  const saveCustomPreset = useSceneStore((s) => s.saveCustomPreset);
+  const applyCustomPreset = useSceneStore((s) => s.applyCustomPreset);
+  const deleteCustomPreset = useSceneStore((s) => s.deleteCustomPreset);
   const [tab, setTab] = useState<'templates' | 'custom'>('templates');
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [naming, setNaming] = useState(false);
+  const [presetName, setPresetName] = useState('');
+
+  // saved presets live in localStorage — pick them up after mount
+  useEffect(() => { loadCustomPresets(); }, [loadCustomPresets]);
+
+  const activeMeta = templateList.find((t) => t.meta.id === activeTemplateId)?.meta;
+
+  const commitPreset = () => {
+    const name = presetName.trim() || `${activeMeta?.name ?? 'Preset'} custom`;
+    saveCustomPreset(name);
+    setNaming(false);
+    setPresetName('');
+    setTab('custom');
+  };
 
   const q = query.trim().toLowerCase();
   const searching = q.length > 0;
@@ -38,13 +58,40 @@ export default function TemplatesCard() {
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.4"/><path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
           </span>
           <input placeholder={`Search ${templateList.length} templates`} value={query} onChange={(e) => setQuery(e.target.value)} />
-          <span className="kbd-chip">⌘K</span>
         </div>
       </div>
 
       <div className="tpl-list">
         {tab === 'custom' ? (
-          <div className="tpl-group-label">No custom presets yet</div>
+          customPresets.length === 0 ? (
+            <div className="tpl-group-label">No custom presets yet</div>
+          ) : (
+            <div className="tpl-grid">
+              {customPresets.map((p) => {
+                const base = templateList.find((t) => t.meta.id === p.templateId);
+                return (
+                  <div
+                    key={p.id}
+                    className="tpl-card tpl-card-custom"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => applyCustomPreset(p.id)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') applyCustomPreset(p.id); }}
+                  >
+                    {base && <TemplateThumb template={base} />}
+                    <span className="tpl-card-label">{p.name}</span>
+                    <button
+                      className="icon-btn tpl-del"
+                      title="Delete preset"
+                      onClick={(e) => { e.stopPropagation(); deleteCustomPreset(p.id); }}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )
         ) : searching ? (
           // flat results across all groups while searching
           <div className="tpl-grid">
@@ -102,7 +149,24 @@ export default function TemplatesCard() {
       </div>
 
       <div className="tpl-foot">
-        <button className="btn full">Save as custom</button>
+        {naming ? (
+          <div className="tpl-save-row">
+            <input
+              className="field"
+              autoFocus
+              placeholder={`${activeMeta?.name ?? 'Preset'} custom`}
+              value={presetName}
+              onChange={(e) => setPresetName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitPreset();
+                if (e.key === 'Escape') { setNaming(false); setPresetName(''); }
+              }}
+            />
+            <button className="btn solid" onClick={commitPreset}>Save</button>
+          </div>
+        ) : (
+          <button className="btn full" onClick={() => setNaming(true)}>Save as custom</button>
+        )}
       </div>
     </section>
   );

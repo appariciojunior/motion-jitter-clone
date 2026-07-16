@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSceneStore, ASPECTS } from '@/store/useSceneStore';
 import { ControlRow } from './Controls';
 
@@ -10,6 +10,30 @@ const BG_SOURCES: { id: 'color' | 'image' | 'card'; label: string }[] = [
   { id: 'image', label: 'Image' },
   { id: 'card', label: 'From card' },
 ];
+
+// Pixel input that commits on blur/Enter so half-typed values don't
+// resize the canvas mid-keystroke.
+function DimInput({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  const commit = () => {
+    const n = Number(text);
+    if (Number.isFinite(n) && n > 0) onCommit(n);
+    else setText(String(value));
+  };
+  return (
+    <input
+      className="field dim-field"
+      type="number"
+      min={16}
+      max={8192}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+    />
+  );
+}
 
 function Collapsible({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -29,6 +53,9 @@ function Collapsible({ title, children }: { title: string; children: React.React
 export default function CanvasPanel() {
   const aspect = useSceneStore((s) => s.aspect);
   const setAspect = useSceneStore((s) => s.setAspect);
+  const customW = useSceneStore((s) => s.customW);
+  const customH = useSceneStore((s) => s.customH);
+  const setCustomDims = useSceneStore((s) => s.setCustomDims);
   const fps = useSceneStore((s) => s.fps);
   const setFps = useSceneStore((s) => s.setFps);
   const safeArea = useSceneStore((s) => s.safeArea);
@@ -50,8 +77,23 @@ export default function CanvasPanel() {
             {Object.keys(ASPECTS).map((a) => (
               <button key={a} className={`pill ${aspect === a ? 'active' : ''}`} onClick={() => setAspect(a)}>{a}</button>
             ))}
+            <button className={`pill ${aspect === 'custom' ? 'active' : ''}`} onClick={() => setCustomDims(customW, customH)}>W×H</button>
           </div>
         </div>
+
+        {aspect === 'custom' && (
+          <>
+            <div className="ctl-row">
+              <label className="ctl-label">Size px</label>
+              <div className="dim-inputs">
+                <DimInput value={customW} onCommit={(v) => setCustomDims(v, customH)} />
+                <span className="dim-x">×</span>
+                <DimInput value={customH} onCommit={(v) => setCustomDims(customW, v)} />
+              </div>
+            </div>
+            <div className="ctl-hint">Preview scales to fit — the exact size applies on export.</div>
+          </>
+        )}
 
         <div className="ctl-row">
           <label className="ctl-label">FPS</label>

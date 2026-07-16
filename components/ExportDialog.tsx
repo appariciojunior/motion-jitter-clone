@@ -5,7 +5,28 @@ import { useSceneStore } from '@/store/useSceneStore';
 import { getRendererInstance } from '@/lib/rendererInstance';
 
 type Fmt = 'mp4' | 'gif' | 'both';
+type Res = '1080p' | '2k' | '4k' | 'exact';
 type Phase = 'idle' | 'capturing' | 'encoding' | 'done' | 'error';
+
+// Presets are defined by the shortest edge (vertical 1080p = 1080×1920).
+const RES_SHORT: Record<Exclude<Res, 'exact'>, number> = { '1080p': 1080, '2k': 1440, '4k': 2160 };
+const RES_LABEL: Record<Exclude<Res, 'exact'>, string> = { '1080p': '1080p', '2k': '2K', '4k': '4K' };
+
+// Target output size + capture scale for a given preset. Even dimensions
+// are required by libx264 with yuv420p.
+function targetFor(res: Res, s: { width: number; height: number; customW: number; customH: number; aspect: string }) {
+  if (res === 'exact' && s.aspect !== 'custom') res = '1080p'; // stale selection after aspect change
+  let k: number;
+  let tw: number, th: number;
+  if (res === 'exact') {
+    k = Math.max(s.customW, s.customH) / Math.max(s.width, s.height);
+    tw = s.customW; th = s.customH;
+  } else {
+    k = RES_SHORT[res] / Math.min(s.width, s.height);
+    tw = Math.round(s.width * k); th = Math.round(s.height * k);
+  }
+  return { k, width: tw - (tw % 2), height: th - (th % 2) };
+}
 
 async function post(body: any) {
   const res = await fetch('/api/export', {
@@ -19,7 +40,13 @@ async function post(body: any) {
 
 export default function ExportDialog({ onClose }: { onClose: () => void }) {
   const store = useSceneStore;
+  const aspect = useSceneStore((s) => s.aspect);
+  const width = useSceneStore((s) => s.width);
+  const height = useSceneStore((s) => s.height);
+  const customW = useSceneStore((s) => s.customW);
+  const customH = useSceneStore((s) => s.customH);
   const [format, setFormat] = useState<Fmt>('mp4');
+  const [res, setRes] = useState<Res>('1080p');
   const [phase, setPhase] = useState<Phase>('idle');
   const [captured, setCaptured] = useState(0);
   const [total, setTotal] = useState(0);
@@ -32,6 +59,7 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
     if (!renderer) { setErr('Renderer not ready'); setPhase('error'); return; }
 
     const totalFrames = Math.max(1, Math.round(s.duration * s.fps));
+    const target = targetFor(res, s);
     const wasPlaying = s.playing;
     s.setPlaying(false);
     setTotal(totalFrames);
@@ -41,12 +69,17 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
     try {
       const { sessionId } = await post({ action: 'begin' });
 
-      for (let f = 0; f < totalFrames; f++) {
-        const dataUrl = renderer.captureFrame(f);       // time = frame counter, never wall-clock
-        await post({ action: 'frame', sessionId, index: f, dataUrl });
-        setCaptured(f + 1);
-        // yield to keep UI responsive
-        if (f % 5 === 0) await new Promise((r) => setTimeout(r, 0));
+      renderer.setCaptureScale(target.k); // hi-res backing store; layout untouched
+      try {
+        for (let f = 0; f < totalFrames; f++) {
+          const dataUrl = renderer.captureFrame(f);       // time = frame counter, never wall-clock
+          await post({ action: 'frame', sessionId, index: f, dataUrl });
+          setCaptured(f + 1);
+          // yield to keep UI responsive
+          if (f % 5 === 0) await new Promise((r) => setTimeout(r, 0));
+        }
+      } finally {
+        renderer.setCaptureScale(1);
       }
 
       setPhase('encoding');
@@ -63,8 +96,8 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
         sessionId,
         fps: s.fps,
         format,
-        width: s.width,
-        height: s.height,
+        width: target.width,
+        height: target.height,
         audio,
       });
 
@@ -96,6 +129,29 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
                 ))}
               </div>
             </div>
+          </div>
+
+          <div className="ctl-row">
+            <label className="ctl-label">Resolution</label>
+            <div className="ctl-input">
+              <div className="pills">
+                {(Object.keys(RES_SHORT) as Exclude<Res, 'exact'>[]).map((r) => (
+                  <button key={r} className={`pill ${res === r ? 'active' : ''}`} onClick={() => setRes(r)}>{RES_LABEL[r]}</button>
+                ))}
+                {aspect === 'custom' && (
+                  <button className={`pill ${res === 'exact' ? 'active' : ''}`} onClick={() => setRes('exact')} title={`Exact canvas size ${customW}×${customH}`}>
+                    {customW}×{customH}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="ctl-hint">
+            {(() => {
+              const t = targetFor(res, { width, height, customW, customH, aspect });
+              return `Output ${t.width}×${t.height} px`;
+            })()}
           </div>
 
           {phase === 'idle' && (

@@ -62,6 +62,14 @@ function SliderControl({ def, value, onChange }: RowProps) {
         setFromX(e.clientX);
       }}
       onPointerMove={(e) => { if (!editing && e.buttons === 1) setFromX(e.clientX); }}
+      onDoubleClick={(e) => {
+        // double-click resets to the control's declared default
+        if (editing) return;
+        if ((e.target as HTMLElement).closest('.sval, .sval-input')) return;
+        const d = Number(def.default);
+        if (Number.isFinite(d)) onChange(d);
+      }}
+      title="Double-click to reset"
     >
       <div className="sfill" style={{ width: `${pct}%` }} />
       <div className="shandle" style={{ left: `${pct}%` }} />

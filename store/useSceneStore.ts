@@ -48,6 +48,20 @@ export interface LogoSettings {
   size: number; // px
 }
 
+// A named snapshot of a template's tweaked values + easing ("Save as custom").
+export interface CustomPreset {
+  id: string;
+  name: string;
+  templateId: string;
+  values: Record<string, any>;
+  easing: EasingSpec;
+}
+
+const PRESETS_KEY = 'motion-custom-presets';
+function persistPresets(list: CustomPreset[]) {
+  try { localStorage.setItem(PRESETS_KEY, JSON.stringify(list)); } catch { /* storage full/blocked */ }
+}
+
 export interface SceneState {
   // motion template
   activeTemplateId: string;
@@ -61,9 +75,11 @@ export interface SceneState {
   playing: boolean;
 
   // canvas
-  aspect: string;
-  width: number;
+  aspect: string;       // key of ASPECTS, or 'custom'
+  width: number;        // logical/preview px (longest edge normalized to BASE)
   height: number;
+  customW: number;      // exact export px when aspect === 'custom'
+  customH: number;
   safeArea: boolean;
   background: BackgroundSettings;
   logo: LogoSettings;
@@ -75,6 +91,9 @@ export interface SceneState {
   // effects (SEAM 2)
   effects: ActiveEffect[];
 
+  // custom presets (saved template snapshots)
+  customPresets: CustomPreset[];
+
   // ---- actions ----
   setValue: (key: string, val: any) => void;
   setActiveTemplate: (id: string) => void;
@@ -84,6 +103,7 @@ export interface SceneState {
   setPlaying: (p: boolean) => void;
   setFps: (fps: number) => void;
   setAspect: (aspect: string) => void;
+  setCustomDims: (w: number, h: number) => void;
   setDuration: (d: number) => void;
   toggleSafeArea: () => void;
   setBackground: (patch: Partial<BackgroundSettings>) => void;
@@ -96,6 +116,11 @@ export interface SceneState {
   toggleAsset: (id: string) => void;
   reorderAssets: (from: number, to: number) => void;
   clearAssets: () => void;
+
+  loadCustomPresets: () => void;
+  saveCustomPreset: (name: string) => void;
+  applyCustomPreset: (id: string) => void;
+  deleteCustomPreset: (id: string) => void;
 
   addEffect: (effectId: string, values: Record<string, any>) => void;
   removeEffect: (instanceId: string) => void;
@@ -126,6 +151,8 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   aspect: '3:4',
   width: initDims.width,
   height: initDims.height,
+  customW: initDims.width,
+  customH: initDims.height,
   safeArea: false,
   background: { source: 'color', color: '#0d0d0d', gradient: false, color2: '#1f1f1f', imageUrl: null, blur: 28 },
   logo: { url: null, position: 'br', size: 96 },
@@ -133,6 +160,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
 
   assets: [],
   effects: [],
+  customPresets: [],
 
   setValue: (key, val) =>
     set((s) => ({ values: { ...s.values, [key]: val } })),
@@ -154,6 +182,21 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   setFps: (fps) => set(() => ({ fps })),
   setAspect: (aspect) =>
     set(() => ({ aspect, ...dimsFor(aspect) })),
+  // Custom canvas: preview stays normalized to BASE on the longest edge so
+  // template layout keeps its proportions; the exact pixels apply at export.
+  setCustomDims: (w, h) =>
+    set(() => {
+      const cw = Math.min(8192, Math.max(16, Math.round(w) || 16));
+      const ch = Math.min(8192, Math.max(16, Math.round(h) || 16));
+      const k = BASE / Math.max(cw, ch);
+      return {
+        aspect: 'custom',
+        customW: cw,
+        customH: ch,
+        width: Math.max(2, Math.round(cw * k)),
+        height: Math.max(2, Math.round(ch * k)),
+      };
+    }),
   setDuration: (d) => set(() => ({ duration: d })),
   toggleSafeArea: () => set((s) => ({ safeArea: !s.safeArea })),
   setBackground: (patch) => set((s) => ({ background: { ...s.background, ...patch } })),
@@ -189,6 +232,48 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       return { assets: next };
     }),
   clearAssets: () => set(() => ({ assets: [] })),
+
+  // Loaded lazily on the client (localStorage isn't available during SSR,
+  // and seeding it at create() time would cause a hydration mismatch).
+  loadCustomPresets: () =>
+    set(() => {
+      if (typeof window === 'undefined') return {};
+      try {
+        const raw = localStorage.getItem(PRESETS_KEY);
+        return raw ? { customPresets: JSON.parse(raw) as CustomPreset[] } : {};
+      } catch { return {}; }
+    }),
+  saveCustomPreset: (name) =>
+    set((s) => {
+      const preset: CustomPreset = {
+        id: `custom_${Date.now().toString(36)}_${s.customPresets.length}`,
+        name,
+        templateId: s.activeTemplateId,
+        values: { ...s.values },
+        easing: s.easing,
+      };
+      const next = [...s.customPresets, preset];
+      persistPresets(next);
+      return { customPresets: next };
+    }),
+  applyCustomPreset: (id) =>
+    set((s) => {
+      const p = s.customPresets.find((c) => c.id === id);
+      if (!p) return {};
+      // merge over current defaults so presets survive template control changes
+      return {
+        activeTemplateId: p.templateId,
+        values: { ...defaultsFor(p.templateId), ...p.values },
+        easing: p.easing,
+        frame: 0,
+      };
+    }),
+  deleteCustomPreset: (id) =>
+    set((s) => {
+      const next = s.customPresets.filter((c) => c.id !== id);
+      persistPresets(next);
+      return { customPresets: next };
+    }),
 
   addEffect: (effectId, values) =>
     set((s) => ({

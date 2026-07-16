@@ -34,7 +34,33 @@
       "Bash(git rebase *)",
       "Bash(git stash *)",
       "Bash(git checkout *)",
-      "Bash(git commit -q -m 'chore: project settings + generated next-env *)"
+      "Bash(git commit -q -m 'chore: project settings + generated next-env *)",
+      "Bash(kill 52056)",
+      "Bash(grep -n \"\\\\.pill \\\\|\\\\.pill{\\\\|\\\\.pill,\\\\|\\\\.pill\\\\.\\\\|\\\\.field\\\\b\\\\|\\\\.ctl-hint\" /Users/apparicio.junior/VSCode/Motion-Tool/app/globals.css)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(ffmpeg -y -f lavfi -i \"testsrc=size=810x1080:rate=30\" -frames:v 6 -f image2 tf_%02d.png)",
+      "Bash(ffprobe -v quiet -show_entries stream=width,height,codec_name -of csv /Users/apparicio.junior/VSCode/Motion-Tool/public/exports/motion_4c8885fa*.mp4 /Users/apparicio.junior/VSCode/Motion-Tool/public/exports/motion_4c8885fa*.gif)",
+      "Bash(rm -f /Users/apparicio.junior/VSCode/Motion-Tool/public/exports/motion_4c8885fa* /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/tf_*.png; tail -8 /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/tasks/bssftc0hj.output)",
+      "Bash(python3 -c ' *)",
+      "mcp__claude_ai_Figma__get_screenshot",
+      "Bash(curl -sL -o figma-full.png \"https://www.figma.com/api/mcp/asset/fd12d817-96a1-446a-a6e0-6e261904e42f\")",
+      "Bash(curl -s -o /dev/null -w \"page: %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash([ -x \"$CHROME\" ])",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless --disable-gpu --screenshot=/private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/app-light.png --window-size=1720,1100 --hide-scrollbars http://localhost:3000)",
+      "Bash(ffmpeg -y -v error -i app-light.png -vf \"crop=560:400:80:180,scale=1120:800\" tpl-zoom.png)",
+      "Bash(cd /Users/apparicio.junior/VSCode/Motion-Tool && npx tsc --noEmit && echo \"tsc clean\" && grep -c \"error\" /dev/null; tail -3 /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/tasks/bssftc0hj.output)",
+      "Read(//dev/**)",
+      "Bash(npm i *)",
+      "Bash(node /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/smoke.mjs)",
+      "Bash(ffmpeg -y -v error -f lavfi -i \"color=red:size=64x64\" -frames:v 1 img-red.png -f lavfi -i \"color=lime:size=64x64\" -frames:v 1 img-green.png -f lavfi -i \"color=blue:size=64x64\" -frames:v 1 img-blue.png)",
+      "Bash(node /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/drag-test.mjs)",
+      "Bash(node /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/welcome-test.mjs)",
+      "Bash(ffmpeg -y -v error -i /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/welcome.png -vf \"crop=500:80:657:450,scale=1000:160\" /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/dash-zoom.png)",
+      "Bash(node /private/tmp/claude-503/-Users-apparicio-junior-VSCode-Motion-Tool/02fdaf81-ba18-4ee8-b5d1-d44bb581ef34/scratchpad/readme-shot.mjs)",
+      "Bash(git rm *)"
+    ],
+    "additionalDirectories": [
+      "/Users/apparicio.junior/VSCode/Motion-Tool/public/exports"
     ]
   }
 }

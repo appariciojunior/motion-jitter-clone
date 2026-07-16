@@ -83,9 +83,9 @@ export class SceneRenderer {
     this.syncAssets();
   }
 
-  resize(width: number, height: number) {
+  resize(width: number, height: number, resolution = 1) {
     if (!this.ready) return;
-    this.app.renderer.resize(width, height);
+    this.app.renderer.resize(width, height, resolution);
     this.motion.position.set(width / 2, height / 2);
     this.bgSprite.position.set(width / 2, height / 2);
     this.content.filterArea = new PIXI.Rectangle(0, 0, width, height);
@@ -338,6 +338,14 @@ export class SceneRenderer {
   captureFrame(frame: number): string {
     this.renderFrame(frame);
     return (this.app.canvas as HTMLCanvasElement).toDataURL('image/png');
+  }
+
+  // Multiply the backing-store resolution for export capture. Logical
+  // coordinates stay at store width/height, so template layout is untouched;
+  // only the pixel density of the rendered output changes.
+  setCaptureScale(k: number) {
+    const { width, height } = useSceneStore.getState();
+    this.resize(width, height, k);
   }
 
   extractCanvas(): HTMLCanvasElement {

@@ -3,25 +3,13 @@
 import { useState } from 'react';
 
 const NAV = [
-  { id: 'singles', label: 'Singles', icon: (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="8" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/><rect x="12" y="6" width="5" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5"/></svg>
-  ) },
-  { id: 'stock', label: 'Stock', icon: (
+  { id: 'library', label: 'Library', icon: (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/></svg>
-  ) },
-  { id: 'mockups', label: 'Mockups', icon: (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M7 17h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-  ) },
-  { id: 'reels', label: 'Reels', icon: (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M9 8l4 2-4 2V8z" fill="currentColor"/></svg>
-  ) },
-  { id: 'compress', label: 'Compress', icon: (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M8 4L4 8m0-4v4h4M12 16l4-4m0 4v-4h-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
   ) },
 ];
 
 export default function IconRail() {
-  const [active, setActive] = useState('singles');
+  const [active, setActive] = useState('library');
   return (
     <aside className="card rail">
       <div className="rail-top">

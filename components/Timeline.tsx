@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSceneStore } from '@/store/useSceneStore';
 import ExportDialog from './ExportDialog';
 
@@ -35,6 +35,20 @@ export default function Timeline() {
   const setDuration = useSceneStore((s) => s.setDuration);
   const [showExport, setShowExport] = useState(false);
 
+  // Spacebar toggles play/pause anywhere except while typing in a field.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || e.repeat) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      e.preventDefault();
+      const s = useSceneStore.getState();
+      s.setPlaying(!s.playing);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const totalFrames = Math.max(1, Math.round(duration * fps));
   const curTime = frame / fps;
   const progress = (frame / (totalFrames - 1 || 1)) * 100;
@@ -53,6 +67,7 @@ export default function Timeline() {
       <span className="time-readout"><b>{fmt(curTime)}</b> / {fmt(duration)}s</span>
 
       <div className="scrubber">
+        <div className="tl-trackbar" />
         <div className="ruler">
           {dashes.map((pct, i) => (
             <span key={`d${i}`} className="ruler-dash" style={{ left: `${pct}%`, width: 8 }} />

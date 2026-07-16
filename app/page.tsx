@@ -8,6 +8,7 @@ import CanvasPanel from '@/components/CanvasPanel';
 import EffectsPanel from '@/components/EffectsPanel';
 import AssetsPanel from '@/components/AssetsPanel';
 import Timeline from '@/components/Timeline';
+import WelcomeDialog from '@/components/WelcomeDialog';
 
 // Pixi must run client-side only.
 const PreviewStage = dynamic(() => import('@/components/PreviewStage'), { ssr: false });
@@ -41,6 +42,8 @@ export default function Home() {
       <footer className="card bottom">
         <Timeline />
       </footer>
+
+      <WelcomeDialog />
     </div>
   );
 }

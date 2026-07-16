@@ -49,10 +49,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'encode') {
-      const { sessionId, fps, format, audio } = body;
+      const { sessionId, fps, format, audio, width, height } = body;
       const dir = sessionDir(sessionId);
       const pattern = path.join(dir, 'frame_%05d.png');
       await fs.mkdir(EXPORTS_DIR, { recursive: true });
+
+      // Exact output size when the client provides one (already even-rounded);
+      // otherwise just force even dimensions, which yuv420p requires.
+      const w = Number(width), h = Number(height);
+      const sizeFilter =
+        Number.isInteger(w) && Number.isInteger(h) && w > 0 && h > 0
+          ? `scale=${w - (w % 2)}:${h - (h % 2)}:flags=lanczos`
+          : 'scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos';
 
       let audioFile: string | null = null;
       if (audio) {
@@ -67,6 +75,7 @@ export async function POST(req: NextRequest) {
         const outPath = path.join(EXPORTS_DIR, out);
         const args = ['-y', '-framerate', String(fps), '-i', pattern];
         if (audioFile) args.push('-i', audioFile);
+        args.push('-vf', sizeFilter);
         args.push('-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18');
         if (audioFile) args.push('-c:a', 'aac', '-shortest');
         args.push(outPath);
@@ -79,9 +88,9 @@ export async function POST(req: NextRequest) {
         const out = `motion_${sessionId}.gif`;
         const outPath = path.join(EXPORTS_DIR, out);
         await run('ffmpeg', ['-y', '-framerate', String(fps), '-i', pattern,
-          '-vf', `fps=${fps},scale=iw:-1:flags=lanczos,palettegen`, palette]);
+          '-vf', `fps=${fps},${sizeFilter},palettegen`, palette]);
         await run('ffmpeg', ['-y', '-framerate', String(fps), '-i', pattern, '-i', palette,
-          '-filter_complex', `fps=${fps} [x]; [x][1:v] paletteuse`, outPath]);
+          '-filter_complex', `fps=${fps},${sizeFilter} [x]; [x][1:v] paletteuse`, outPath]);
         files.push(out);
       }
 
