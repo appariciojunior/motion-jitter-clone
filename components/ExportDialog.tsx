@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useSceneStore } from '@/store/useSceneStore';
 import { getRendererInstance } from '@/lib/rendererInstance';
+import { BASE_PATH, IS_STATIC_EXPORT } from '@/lib/paths';
 
 type Fmt = 'mp4' | 'gif' | 'both';
 type Res = '1080p' | '2k' | '4k' | 'exact';
@@ -29,7 +30,7 @@ function targetFor(res: Res, s: { width: number; height: number; customW: number
 }
 
 async function post(body: any) {
-  const res = await fetch('/api/export', {
+  const res = await fetch(`${BASE_PATH}/api/export`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -120,6 +121,23 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="modal-body">
+          {IS_STATIC_EXPORT ? (
+          <div className="export-static-note">
+            <p>
+              Export renders every frame and encodes MP4/GIF with native ffmpeg —
+              that pipeline isn&apos;t available on this hosted demo.
+            </p>
+            <p>To export, clone the repo and run it locally:</p>
+            <pre><code>{`git clone https://github.com/appariciojunior/motion-jitter-clone.git
+cd motion-jitter-clone
+npm install && brew install ffmpeg
+npm run dev`}</code></pre>
+            <a className="btn primary full" href="https://github.com/appariciojunior/motion-jitter-clone" target="_blank" rel="noreferrer">
+              View on GitHub
+            </a>
+          </div>
+          ) : (
+          <>
           <div className="ctl-row">
             <label className="ctl-label">Format</label>
             <div className="ctl-input">
@@ -172,7 +190,7 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
               <p>Done. Saved to <code>/exports</code>:</p>
               <ul>
                 {outputs.map((f) => (
-                  <li key={f}><a href={`/exports/${f}`} download>{f}</a></li>
+                  <li key={f}><a href={`${BASE_PATH}/exports/${f}`} download>{f}</a></li>
                 ))}
               </ul>
             </div>
@@ -188,6 +206,8 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
                 </div>
               )}
             </div>
+          )}
+          </>
           )}
         </div>
       </div>

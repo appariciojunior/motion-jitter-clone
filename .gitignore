@@ -14,3 +14,4 @@ public/exports/*
 
 # demo source originals (compressed copies live in public/demo)
 demo-images/
+out/

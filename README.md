@@ -6,6 +6,15 @@ via native ffmpeg. Runs self-hosted on localhost — single machine, no auth.
 
 ![UI](ui.png)
 
+## Try it live
+
+**https://appariciojunior.github.io/motion-jitter-clone/**
+
+The hosted demo is a static build (auto-deployed from `main` via GitHub
+Pages) — every template, control, and preview works in the browser. The only
+exception is MP4/GIF export, which uses a native ffmpeg pipeline: clone the
+repo and `npm run dev` to export.
+
 ## Stack
 
 - **Next.js** (App Router, TypeScript)
