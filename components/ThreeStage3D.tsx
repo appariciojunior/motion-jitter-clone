@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getThreeEffect, threeDefaults, threeEffects } from '@/three3d';
 import { use3DStore } from '@/store/use3DStore';
 import { isOn } from '@/three3d/asciiControls';
+import type { CameraRig } from '@/three3d/cameraRig';
+import ViewGizmo from './ViewGizmo';
 
 // 3D preview stage. Renders the active 3D effect into a canvas, then layers CSS
 // post-processing driven by use3DStore params. The effect is (re)initialised
@@ -20,6 +22,8 @@ export default function ThreeStage3D() {
   const p = { ...dflts, ...overrides };   // schema defaults + user edits
   const has = (k: string) => k in dflts;  // which controls this effect declares
   const modelUrl = use3DStore((s) => s.model.url);
+  // effects that expose a camera get the view gizmo; the rest render without it
+  const [rig, setRig] = useState<CameraRig | null>(null);
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -43,6 +47,7 @@ export default function ThreeStage3D() {
         const s = use3DStore.getState();
         return { scale: s.sunMaskScale, offX: s.sunMaskOffsetX, offY: s.sunMaskOffsetY };
       },
+      onCamera: setRig,
     });
     return () => dispose();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,6 +89,8 @@ export default function ThreeStage3D() {
       {has('vignette') && <div className="three3d-lens three3d-vignette" style={{ opacity: num('vignette', 0) / 100 }} />}
       {has('enableMask') && isOn(p.enableMask) && <div className="three3d-lens three3d-mask" />}
       {has('dotGrid') && isOn(p.dotGrid) && <div className="three3d-lens three3d-dotgrid" />}
+
+      {rig && <ViewGizmo rig={rig} />}
     </div>
   );
 }

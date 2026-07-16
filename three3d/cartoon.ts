@@ -5,6 +5,7 @@ import type { AsciiOptions } from './ascii';
 import { isOn } from './asciiControls';
 import { fitAndCenter } from './frame';
 import { asset } from '@/lib/paths';
+import { makeCameraRig } from './cameraRig';
 
 // ── Cartoon (toon) 3D effect ────────────────────────────────────────────────
 // Renders the model with THREE.MeshToonMaterial straight to the (WebGL) canvas.
@@ -193,6 +194,9 @@ vec4 stochNormalW(sampler2D tex, vec2 uv){
   const INIT_TARGET = new THREE.Vector3(0, 0, 0);
   const INIT_CAM = new THREE.Vector3(0, 0, 4);
   controls.target.copy(INIT_TARGET);
+
+  const rig = makeCameraRig(camera, controls);
+  opts.onCamera?.(rig);
 
   const MODEL_SIZE = 2.4;
   let modelHalf = MODEL_SIZE / 2;
@@ -573,13 +577,15 @@ vec4 stochNormal(sampler2D tex, vec2 uv){
       if (key !== goboKey) { drawGobo(mt.scale / 100, mt.offX / 100, mt.offY / 100); goboKey = key; }
     } else if (sun.map) { sun.map = null; }
 
-    controls.update();
+    rig.update();       // gizmo snap tween — writes camera.position
+    controls.update();  // re-derives its spherical state from that position
     renderer.render(scene, camera);
   }
   loop();
 
   return function dispose() {
     disposed = true;
+    opts.onCamera?.(null);
     cancelAnimationFrame(animId);
     ro.disconnect();
     canvas.removeEventListener('pointerdown', onDown);

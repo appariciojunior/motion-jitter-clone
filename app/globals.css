@@ -125,6 +125,29 @@ input[type=range] { -webkit-appearance: none; appearance: none; background: none
 }
 .beta-note { font-size: var(--fs-meta); color: var(--fg-muted); line-height: 15px; }
 
+/* ============================================================
+   VIEW GIZMO — Blender-style axis widget, top-right of the 3D stage
+   ============================================================ */
+.view-gizmo {
+  position: absolute; top: 10px; right: 10px; z-index: 5;
+  cursor: grab; touch-action: none; user-select: none;
+}
+/* balls are visual only; .gz-input below owns every pointer event */
+.gz-axis { pointer-events: none; }
+.gz-input { fill: transparent; }
+.gz-x { --gz: var(--gz-x); }
+.gz-y { --gz: var(--gz-y); }
+.gz-z { --gz: var(--gz-z); }
+.gz-axis line { stroke: var(--gz); stroke-width: 1.75; stroke-linecap: round; }
+.gz-pos .gz-ball { fill: var(--gz); }
+.gz-neg .gz-ball { fill: var(--gz-neg-fill); stroke: var(--gz); stroke-width: 1.5; }
+.gz-axis text {
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.2px;
+  text-anchor: middle; dominant-baseline: central;
+}
+.gz-pos text { fill: var(--gz-label); }
+.gz-neg text { fill: var(--gz); }
+
 .searchbox {
   position: relative; display: flex; align-items: center;
   background: var(--card-inset); border-radius: var(--r-ctrl); height: 34px;

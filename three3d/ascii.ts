@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CHAR_SETS, asciiDefaults, isOn } from './asciiControls';
 import { fitAndCenter } from './frame';
 import { asset } from '@/lib/paths';
+import type { CameraRig } from './cameraRig';
 
 // ── ASCII 3D effect ─────────────────────────────────────────────────────────
 // Port of 3D/ASCII/index.html, extended to read live control values. Loads a
@@ -31,6 +32,8 @@ export interface AsciiOptions {
   getSunlight?: () => number;               // window-light intensity 0..100
   getSunMask?: () => string | null;         // window gobo texture url
   getSunMaskTransform?: () => { scale: number; offX: number; offY: number };
+  // effect hands out a camera handle (null on teardown) — drives the view gizmo
+  onCamera?: (rig: CameraRig | null) => void;
 }
 
 // ── Value noise (fBm) — the background "height map" that drives BG glyphs ─────
