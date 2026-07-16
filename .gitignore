@@ -11,3 +11,6 @@ public/exports/*
 .claude/settings.local.json
 .DS_Store
 *.log
+
+# demo source originals (compressed copies live in public/demo)
+demo-images/

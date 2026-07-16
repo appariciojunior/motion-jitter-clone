@@ -5,6 +5,7 @@ import { getEffect } from '@/effects';
 import { useSceneStore, type SceneState } from '@/store/useSceneStore';
 import { resolveEasing } from '@/lib/easing';
 import { assetIndexForSlot } from '@/lib/motion';
+import { cardAspectFor, coverCrop, cropKey } from '@/lib/crop';
 
 // Reference base long-edge (px) shared with templates (carousel BASE = 340),
 // so control values read directly in on-screen pixels.
@@ -43,6 +44,7 @@ export class SceneRenderer {
   private logoSprite: PIXI.Sprite | null = null;
   private placeholder!: PIXI.Texture;
   private textureCache = new Map<string, PIXI.Texture>();
+  private croppedCache = new Map<string, PIXI.Texture>(); // cover-crop views over cached base textures
   private slots: Slot[] = [];
   private ready = false;
 
@@ -111,16 +113,31 @@ export class SceneRenderer {
     }
   }
 
+  // Cover-fit a loaded texture into the template's card shape: a cropped view
+  // (no stretch) anchored at the asset's focal point. Cached per url/aspect/focus.
+  private croppedView(url: string, base: PIXI.Texture, aspect: number, crop?: { x: number; y: number }): PIXI.Texture {
+    const key = cropKey(url, aspect, crop);
+    const hit = this.croppedCache.get(key);
+    if (hit) return hit;
+    const { fx, fy, fw, fh } = coverCrop(base.width, base.height, aspect, crop);
+    const tex = new PIXI.Texture({ source: base.source, frame: new PIXI.Rectangle(fx, fy, fw, fh) });
+    this.croppedCache.set(key, tex);
+    return tex;
+  }
+
   // Rebuild the sprite pool to match count; slot i binds to asset i (positional,
   // 1:1 with the Assets panel), or to asset i % assets.length when the template
-  // opts into repeatAssets (high-count fields). Empty/hidden slots fall back to
-  // a numbered card.
+  // opts into repeatAssets (high-count fields). Slots past the asset list cycle
+  // the available images; numbered placeholders appear only with zero assets.
   syncAssets() {
     if (!this.ready) return;
     const s = useSceneStore.getState();
     const count = Math.max(1, Math.round(s.values.count ?? 6));
-    const repeat = getTemplate(s.activeTemplateId).meta.repeatAssets === true;
-    const assetSig = (repeat ? 'R|' : '') + s.assets.map((a) => a.id + ':' + a.url + ':' + a.visible).join('|');
+    const meta = getTemplate(s.activeTemplateId).meta;
+    const repeat = meta.repeatAssets === true;
+    const aspect = cardAspectFor(meta, s.width, s.height, s.cardShape);
+    const assetSig = (repeat ? 'R|' : '') + 'A' + aspect.toFixed(4) + '|' +
+      s.assets.map((a) => a.id + ':' + a.url + ':' + a.visible + ':' + (a.crop ? a.crop.x + ',' + a.crop.y : 'c')).join('|');
 
     if (count === this.lastCountSig && assetSig === this.lastAssetSig) return;
     this.lastCountSig = count;
@@ -148,9 +165,10 @@ export class SceneRenderer {
     }
 
     // assign textures — slot i ↔ asset i (or i % assets.length when repeating);
-    // missing/hidden → numbered placeholder
+    // slots past the list cycle the set; hidden → placeholder
     this.slots.forEach((slot, i) => {
-      const asset = s.assets[assetIndexForSlot(i, s.assets.length, repeat)];
+      let asset = s.assets[assetIndexForSlot(i, s.assets.length, repeat)];
+      if (!asset && s.assets.length > 0) asset = s.assets[i % s.assets.length];
       if (!asset || !asset.visible) {
         slot.sprite.texture = this.placeholder;
         slot.sprite.tint = PLACEHOLDER_FILL;
@@ -160,8 +178,10 @@ export class SceneRenderer {
       } else {
         slot.sprite.tint = 0xffffff;
         slot.label.visible = false;
-        this.loadTexture(asset.url).then((tex) => {
-          if (!tex || slot.sprite.destroyed) return; // slot may be gone by now
+        const { url, crop } = asset;
+        this.loadTexture(url).then((base) => {
+          if (!base || slot.sprite.destroyed) return; // slot may be gone by now
+          const tex = this.croppedView(url, base, aspect, crop);
           slot.sprite.texture = tex;
           slot.texW = tex.width; slot.texH = tex.height; slot.cornerR = -1;
         });

@@ -8,7 +8,7 @@ import { variant } from './variant';
 const BASE = 340;
 
 const wipe: Template = {
-  meta: { id: 'wipe-01', name: 'Takeover 01', group: 'Takeover', defaultEasing: { id: 'linear' } },
+  meta: { id: 'wipe-01', name: 'Takeover 01', group: 'Takeover', defaultEasing: { id: 'linear' }, cardAspect: 'canvas' },
 
   controls: [
     { key: 'count',        label: 'Count',         type: 'slider', min: 2, max: 8, step: 1,     default: 4 },

@@ -10,7 +10,7 @@ const BASE = 340;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 const scale: Template = {
-  meta: { id: 'scale-01', name: 'Dive 01', group: 'Dive', defaultEasing: { id: 'custom', bezier: [0, 0, 0, 0.99] } },
+  meta: { id: 'scale-01', name: 'Dive 01', group: 'Dive', defaultEasing: { id: 'custom', bezier: [0, 0, 0, 0.99] }, cardAspect: 'canvas' },
 
   controls: [
     { key: 'count',        label: 'Count',         type: 'slider', min: 2, max: 10, step: 1,    default: 5 },

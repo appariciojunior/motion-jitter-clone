@@ -1,8 +1,11 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { useSceneStore } from '@/store/useSceneStore';
+import { useSceneStore, type AssetItem } from '@/store/useSceneStore';
 import { getTemplate } from '@/templates';
+import { CARD_SHAPES, DEFAULT_FOCUS, type CropFocus } from '@/lib/crop';
+
+const SHAPE_OPTIONS = ['auto', ...Object.keys(CARD_SHAPES)];
 
 const EyeIcon = ({ off }: { off?: boolean }) => (
   <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
@@ -16,6 +19,41 @@ const XIcon = () => (
   <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
 );
 
+const CropIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 1.5v10.5h10.5M1.5 4H12v10.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+);
+
+// 3×3 focal-point picker: images cover-fill their card without stretching;
+// the focus chooses which part survives the crop.
+const FOCUS_CELLS: CropFocus[] = [0, 0.5, 1].flatMap((y) => [0, 0.5, 1].map((x) => ({ x, y })));
+
+function CropPopover({ asset, onClose }: { asset: AssetItem; onClose: () => void }) {
+  const setAssetCrop = useSceneStore((s) => s.setAssetCrop);
+  const setAllAssetCrops = useSceneStore((s) => s.setAllAssetCrops);
+  const focus = asset.crop ?? DEFAULT_FOCUS;
+  return (
+    <>
+      <div className="crop-scrim" onClick={onClose} />
+      <div className="crop-pop" onPointerDown={(e) => e.stopPropagation()}>
+        <span className="crop-pop-title">Crop focus</span>
+        <div className="crop-grid">
+          {FOCUS_CELLS.map((c) => (
+            <button
+              key={`${c.x}-${c.y}`}
+              className={`crop-cell ${focus.x === c.x && focus.y === c.y ? 'active' : ''}`}
+              title={`${['Left','Centre','Right'][c.x * 2]} / ${['Top','Middle','Bottom'][c.y * 2]}`}
+              onClick={() => setAssetCrop(asset.id, c)}
+            />
+          ))}
+        </div>
+        <button className="link-btn" onClick={() => { setAllAssetCrops(focus); onClose(); }}>
+          Apply to all images
+        </button>
+      </div>
+    </>
+  );
+}
+
 export default function AssetsPanel() {
   const assets = useSceneStore((s) => s.assets);
   const count = useSceneStore((s) => Math.max(1, Math.round(s.values.count ?? 1)));
@@ -26,12 +64,16 @@ export default function AssetsPanel() {
   const toggleAsset = useSceneStore((s) => s.toggleAsset);
   const reorderAssets = useSceneStore((s) => s.reorderAssets);
   const clearAssets = useSceneStore((s) => s.clearAssets);
+  const cardShape = useSceneStore((s) => s.cardShape);
+  const setCardShape = useSceneStore((s) => s.setCardShape);
+  const fullBleed = useSceneStore((s) => getTemplate(s.activeTemplateId).meta.cardAspect === 'canvas');
   const inputRef = useRef<HTMLInputElement>(null);
   const slotInputRef = useRef<HTMLInputElement>(null);
   const slotTarget = useRef<number>(0);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
+  const [cropOpenId, setCropOpenId] = useState<string | null>(null);
   // Pointer-based row drag (HTML5 DnD is unreliable: img elements hijack the
   // drag and re-renders can cancel it). Drag arms after a 4px move so plain
   // clicks (replace / hide / remove) keep working.
@@ -128,6 +170,26 @@ export default function AssetsPanel() {
           {assets.length > 0 && <button className="link-btn" onClick={clearAssets}>Clear all</button>}
         </div>
 
+        {/* card shape — the cover-crop aspect every card adapts to */}
+        <div className="asset-meta">
+          <span>Card shape</span>
+        </div>
+        {fullBleed ? (
+          <div className="asset-meta"><span className="asset-name-empty">Full-bleed template — cards match the canvas</span></div>
+        ) : (
+          <div className="pills shape-pills">
+            {SHAPE_OPTIONS.map((opt) => (
+              <button
+                key={opt}
+                className={`pill ${cardShape === opt ? 'active' : ''}`}
+                onClick={() => setCardShape(opt)}
+              >
+                {opt === 'auto' ? 'Auto' : opt}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* hidden picker for empty-slot uploads */}
         <input
           ref={slotInputRef}
@@ -157,12 +219,20 @@ export default function AssetsPanel() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img className="asset-thumb" src={a.url} alt={a.name} onClick={() => openSlotPicker(i)} title="Replace" />
                 <span className="asset-name" title={a.name}>{a.name}</span>
+                <button
+                  className={`icon-btn ${a.crop && (a.crop.x !== 0.5 || a.crop.y !== 0.5) ? 'crop-set' : ''}`}
+                  title="Crop focus"
+                  onClick={() => setCropOpenId(cropOpenId === a.id ? null : a.id)}
+                >
+                  <CropIcon />
+                </button>
                 <button className={`icon-btn ${a.visible ? '' : 'off'}`} title={a.visible ? 'Hide' : 'Show'} onClick={() => toggleAsset(a.id)}>
                   <EyeIcon off={!a.visible} />
                 </button>
                 <button className="icon-btn" title="Remove" onClick={() => removeAsset(a.id)}>
                   <XIcon />
                 </button>
+                {cropOpenId === a.id && <CropPopover asset={a} onClose={() => setCropOpenId(null)} />}
               </li>
             ) : (
               <li
@@ -175,7 +245,9 @@ export default function AssetsPanel() {
                 <span className="asset-thumb asset-thumb-empty">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
                 </span>
-                <span className="asset-name asset-name-empty">Empty slot — add image</span>
+                <span className="asset-name asset-name-empty">
+                  {assets.length > 0 ? `Repeats image ${(i % assets.length) + 1} — click to override` : 'Empty slot — add image'}
+                </span>
               </li>
             )
           )}

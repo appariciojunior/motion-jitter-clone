@@ -11,7 +11,7 @@ const BASE = 340;
 const zoom: Template = {
   meta: {
     id: 'scale-05', name: 'Dive Zoom', group: 'Dive',
-    defaultEasing: { id: 'linear' }, repeatAssets: true,
+    defaultEasing: { id: 'linear' }, repeatAssets: true, cardAspect: 'canvas',
   },
 
   controls: [

@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { defaultsFor, easingFor } from '@/templates';
 import type { EasingSpec } from '@/lib/easing';
+import type { CropFocus } from '@/lib/crop';
+import { DEMO_ASSETS } from '@/lib/demoAssets';
 
 // ---------- canvas dimension helpers ----------
 export const ASPECTS: Record<string, [number, number]> = {
@@ -24,6 +26,7 @@ export interface AssetItem {
   name: string;
   url: string;
   visible: boolean;
+  crop?: CropFocus; // cover-fit focal point 0..1 per axis; undefined = centre
 }
 
 export interface ActiveEffect {
@@ -87,6 +90,7 @@ export interface SceneState {
 
   // assets → layer slots
   assets: AssetItem[];
+  cardShape: string; // scene-level crop aspect for cards: 'auto' or a CARD_SHAPES key
 
   // effects (SEAM 2)
   effects: ActiveEffect[];
@@ -116,6 +120,9 @@ export interface SceneState {
   toggleAsset: (id: string) => void;
   reorderAssets: (from: number, to: number) => void;
   clearAssets: () => void;
+  setAssetCrop: (id: string, crop: CropFocus) => void;
+  setAllAssetCrops: (crop: CropFocus) => void;
+  setCardShape: (shape: string) => void;
 
   loadCustomPresets: () => void;
   saveCustomPreset: (name: string) => void;
@@ -158,7 +165,9 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   logo: { url: null, position: 'br', size: 96 },
   audioUrl: null,
 
-  assets: [],
+  // start populated with the bundled demo set so every template shows real motion
+  assets: DEMO_ASSETS.map((a) => ({ ...a, id: nid('asset'), visible: true })),
+  cardShape: 'auto',
   effects: [],
   customPresets: [],
 
@@ -211,10 +220,11 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       ],
     })),
   // Set the image at a specific slot; appends if the slot is the next empty one.
+  // A new image gets a fresh (centre) crop — the old focal point rarely fits it.
   replaceAssetAt: (index, item) =>
     set((s) => {
       const next = s.assets.slice();
-      if (index < next.length) next[index] = { ...next[index], name: item.name, url: item.url };
+      if (index < next.length) next[index] = { ...next[index], name: item.name, url: item.url, crop: undefined };
       else next.push({ ...item, id: nid('asset'), visible: true });
       return { assets: next };
     }),
@@ -232,6 +242,11 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       return { assets: next };
     }),
   clearAssets: () => set(() => ({ assets: [] })),
+  setAssetCrop: (id, crop) =>
+    set((s) => ({ assets: s.assets.map((a) => (a.id === id ? { ...a, crop } : a)) })),
+  setAllAssetCrops: (crop) =>
+    set((s) => ({ assets: s.assets.map((a) => ({ ...a, crop })) })),
+  setCardShape: (shape) => set(() => ({ cardShape: shape })),
 
   // Loaded lazily on the client (localStorage isn't available during SSR,
   // and seeding it at create() time would cause a hydration mismatch).

@@ -4,6 +4,7 @@ import { useSceneStore } from '@/store/useSceneStore';
 import { resolveEasing } from '@/lib/easing';
 import { assetIndexForSlot, clamp, lerp } from '@/lib/motion';
 import { loadImage } from '@/lib/textureLoad';
+import { cardAspectFor, coverCrop, cropKey } from '@/lib/crop';
 import type { IRenderer } from '@/lib/rendererTypes';
 
 // Shared with the Pixi renderer so control values read identically in px.
@@ -79,6 +80,7 @@ export class SceneRenderer3D implements IRenderer {
   private camera = new THREE.PerspectiveCamera(50, 1, 1, 40000);
   private slots: Slot3D[] = [];
   private textureCache = new Map<string, THREE.Texture>();
+  private croppedCache = new Map<string, THREE.Texture>(); // cover-crop clones (repeat/offset) of cached bases
   private placeholders = new Map<number, THREE.CanvasTexture>();
   private cornerMaps = new Map<string, THREE.CanvasTexture>();
   private gradientTex: THREE.CanvasTexture | null = null;
@@ -141,12 +143,32 @@ export class SceneRenderer3D implements IRenderer {
     this.camera.updateProjectionMatrix();
   }
 
+  // Cover-fit via UV window (repeat/offset) on a clone sharing the decoded
+  // image — mirrors the Pixi renderer's frame-cropped texture views.
+  private croppedView(url: string, base: THREE.Texture, aspect: number, crop?: { x: number; y: number }): { tex: THREE.Texture; fw: number; fh: number } {
+    const img = base.image as HTMLImageElement;
+    const { fx, fy, fw, fh } = coverCrop(img.width, img.height, aspect, crop);
+    const key = cropKey(url, aspect, crop);
+    let tex = this.croppedCache.get(key);
+    if (!tex) {
+      tex = base.clone();
+      tex.repeat.set(fw / img.width, fh / img.height);
+      tex.offset.set(fx / img.width, 1 - (fy + fh) / img.height); // three's V origin is bottom
+      tex.needsUpdate = true;
+      this.croppedCache.set(key, tex);
+    }
+    return { tex, fw, fh };
+  }
+
   syncAssets() {
     if (!this.ready) return;
     const s = useSceneStore.getState();
     const count = Math.max(1, Math.round(s.values.count ?? 6));
-    const repeat = getTemplate(s.activeTemplateId).meta.repeatAssets === true;
-    const assetSig = (repeat ? 'R|' : '') + s.assets.map((a) => a.id + ':' + a.url + ':' + a.visible).join('|');
+    const meta = getTemplate(s.activeTemplateId).meta;
+    const repeat = meta.repeatAssets === true;
+    const aspect = cardAspectFor(meta, s.width, s.height, s.cardShape);
+    const assetSig = (repeat ? 'R|' : '') + 'A' + aspect.toFixed(4) + '|' +
+      s.assets.map((a) => a.id + ':' + a.url + ':' + a.visible + ':' + (a.crop ? a.crop.x + ',' + a.crop.y : 'c')).join('|');
     if (count === this.lastCountSig && assetSig === this.lastAssetSig) return;
     this.lastCountSig = count;
     this.lastAssetSig = assetSig;
@@ -170,7 +192,8 @@ export class SceneRenderer3D implements IRenderer {
     }
 
     this.slots.forEach((slot, i) => {
-      const asset = s.assets[assetIndexForSlot(i, s.assets.length, repeat)];
+      let asset = s.assets[assetIndexForSlot(i, s.assets.length, repeat)];
+      if (!asset && s.assets.length > 0) asset = s.assets[i % s.assets.length];
       if (!asset || !asset.visible) {
         let ph = this.placeholders.get(i);
         if (!ph) { ph = makePlaceholderTexture(String(i + 1)); this.placeholders.set(i, ph); }
@@ -178,23 +201,25 @@ export class SceneRenderer3D implements IRenderer {
         slot.mesh.material.needsUpdate = true;
         slot.texW = 480; slot.texH = 600;
       } else {
-        const cached = this.textureCache.get(asset.url);
-        if (cached) {
-          slot.mesh.material.map = cached;
+        const { url, crop } = asset;
+        const applyCropped = (base: THREE.Texture) => {
+          const { tex, fw, fh } = this.croppedView(url, base, aspect, crop);
+          slot.mesh.material.map = tex;
           slot.mesh.material.needsUpdate = true;
-          const img = cached.image as HTMLImageElement;
-          slot.texW = img.width; slot.texH = img.height;
+          slot.texW = fw; slot.texH = fh;
+          slot.cornerR = -1; // aspect changed → rebuild the corner mask
+        };
+        const cached = this.textureCache.get(url);
+        if (cached) {
+          applyCropped(cached);
         } else {
-          loadImage(asset.url).then((img) => {
+          loadImage(url).then((img) => {
             if (!img || !this.ready) return;
             const tex = new THREE.Texture(img);
             tex.colorSpace = THREE.SRGBColorSpace;
             tex.needsUpdate = true;
-            this.textureCache.set(asset.url, tex);
-            slot.mesh.material.map = tex;
-            slot.mesh.material.needsUpdate = true;
-            slot.texW = img.width; slot.texH = img.height;
-            slot.cornerR = -1; // aspect changed → rebuild the corner mask
+            this.textureCache.set(url, tex);
+            applyCropped(tex);
           });
         }
       }
@@ -368,6 +393,8 @@ export class SceneRenderer3D implements IRenderer {
     this.slots = [];
     this.textureCache.forEach((t) => t.dispose());
     this.textureCache.clear();
+    this.croppedCache.forEach((t) => t.dispose());
+    this.croppedCache.clear();
     this.placeholders.forEach((t) => t.dispose());
     this.placeholders.clear();
     this.cornerMaps.forEach((t) => t.dispose());
