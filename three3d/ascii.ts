@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CHAR_SETS, asciiDefaults, isOn } from './asciiControls';
 import { fitAndCenter } from './frame';
+import { asset } from '@/lib/paths';
 
 // ── ASCII 3D effect ─────────────────────────────────────────────────────────
 // Port of 3D/ASCII/index.html, extended to read live control values. Loads a
@@ -57,7 +58,7 @@ export function initAscii(
   asciiCanvas: HTMLCanvasElement,
   opts: AsciiOptions = {},
 ): () => void {
-  const MODEL_URL = opts.modelUrl ?? '/3d/clouds.glb';
+  const MODEL_URL = asset(opts.modelUrl ?? '/3d/clouds.glb');
   const DEFAULTS = asciiDefaults();
   const P = () => ({ ...DEFAULTS, ...(opts.getParams?.() ?? {}) });
 

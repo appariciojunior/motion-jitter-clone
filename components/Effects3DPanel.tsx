@@ -15,8 +15,12 @@ export default function Effects3DPanel() {
     <section className="card templates">
       <div className="tpl-head">
         <div className="tabs">
-          <button className="tab active">3D Effects</button>
+          <button className="tab tab-beta active">
+            3D Effects
+            <span className="beta-tag">BETA</span>
+          </button>
         </div>
+        <p className="beta-note">Work in progress — expect rough edges and bugs.</p>
       </div>
       <div className="tpl-list">
         {threeEffects.map((e) => (

@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { AsciiOptions } from './ascii';
 import { isOn } from './asciiControls';
 import { fitAndCenter } from './frame';
+import { asset } from '@/lib/paths';
 
 // ── Cartoon (toon) 3D effect ────────────────────────────────────────────────
 // Renders the model with THREE.MeshToonMaterial straight to the (WebGL) canvas.
@@ -38,7 +39,7 @@ export function initCartoon(
   canvas: HTMLCanvasElement,
   opts: AsciiOptions = {},
 ): () => void {
-  const MODEL_URL = opts.modelUrl ?? '/3d/model/dayse.glb';
+  const MODEL_URL = asset(opts.modelUrl ?? '/3d/model/dayse.glb');
   const P = () => opts.getParams?.() ?? {};
 
   let animId = 0;
@@ -57,13 +58,13 @@ export function initCartoon(
 
   // Paint textures (brush strokes). Shared across all materials.
   const texLoader = new THREE.TextureLoader();
-  const paintNormal = texLoader.load('/3d/textures/paint-normal.png');
+  const paintNormal = texLoader.load(asset('/3d/textures/paint-normal.png'));
   paintNormal.colorSpace = THREE.NoColorSpace;
   paintNormal.wrapS = paintNormal.wrapT = THREE.RepeatWrapping;
-  const paintGrey = texLoader.load('/3d/textures/paint-grey.jpg');   // value strokes → diffuse
+  const paintGrey = texLoader.load(asset('/3d/textures/paint-grey.jpg'));   // value strokes → diffuse
   paintGrey.colorSpace = THREE.SRGBColorSpace;
   paintGrey.wrapS = paintGrey.wrapT = THREE.RepeatWrapping;
-  const paintAlpha = texLoader.load('/3d/textures/paint-alpha.png');  // contrast mask → rim erosion
+  const paintAlpha = texLoader.load(asset('/3d/textures/paint-alpha.png'));  // contrast mask → rim erosion
   paintAlpha.wrapS = paintAlpha.wrapT = THREE.RepeatWrapping;
 
   // GLSL helpers shared by the wall material (stochastic paint tiling).
@@ -163,7 +164,7 @@ vec4 stochNormalW(sampler2D tex, vec2 uv){
     goboUrl = url; goboImg = null;
     const img = new Image();
     img.onload = () => { goboImg = img; goboKey = ''; };   // force redraw next frame
-    img.src = url;
+    img.src = asset(url);
   }
   function drawGobo(scale: number, offX: number, offY: number) {
     if (!goboImg) return;

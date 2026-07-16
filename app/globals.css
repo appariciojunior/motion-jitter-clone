@@ -116,6 +116,15 @@ input[type=range] { -webkit-appearance: none; appearance: none; background: none
 }
 .tab.active { background: var(--seg-active-bg); color: var(--seg-active-fg); }
 
+/* BETA marker — 3D mode ships unfinished; flags it in the panel header. */
+.tab-beta { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.beta-tag {
+  font-size: var(--fs-eyebrow); line-height: 1; letter-spacing: 0.8px; font-weight: 500;
+  padding: 2px 4px; border-radius: var(--r-seg);
+  background: var(--beta-bg); color: var(--beta-fg);
+}
+.beta-note { font-size: var(--fs-meta); color: var(--fg-muted); line-height: 15px; }
+
 .searchbox {
   position: relative; display: flex; align-items: center;
   background: var(--card-inset); border-radius: var(--r-ctrl); height: 34px;

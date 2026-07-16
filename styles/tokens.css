@@ -35,6 +35,10 @@
   --chip-bg:      #374151; /* playhead chip + line */
   --chip-fg:      #ffffff;
 
+  /* ---- Beta marker (unfinished feature) — sits on the active dark tab ---- */
+  --beta-bg:      #ffffff;
+  --beta-fg:      #111827;
+
   /* ---- Radii — the design is fully square ---- */
   --r-card:  0px;
   --r-ctrl:  0px;
@@ -94,4 +98,6 @@
   --inverse-fg: #111111;
   --chip-bg:    #cccccc;
   --chip-fg:    #171717;
+  --beta-bg:    #ffffff;
+  --beta-fg:    #111111;
 }
