@@ -5,6 +5,7 @@ import { variant } from './variant';
 import { wheelVariants } from './wheel';
 import { orbitVariants } from './orbit';
 import { orbit3dVariants } from './orbit3d';
+import { spinVariants } from './spin';
 import { stackVariants } from './stack';
 import { storiesVariants } from './stories';
 import { flickerVariants } from './flicker';
@@ -22,6 +23,7 @@ import { zoomVariants } from './zoom';
 import { scatterVariants } from './scatter';
 import { revealVariants } from './reveal';
 import { blankVariants } from './blank';
+import { galleryVariants } from './gallery';
 
 const carouselVariants: Template[] = [
   { ...carousel, meta: { ...carousel.meta, name: 'Runway 01' } },
@@ -44,6 +46,7 @@ export const templateList: Template[] = [
   ...carouselVariants,
   ...orbitVariants,
   ...orbit3dVariants,
+  ...spinVariants,
   ...stackVariants,
   ...wheelVariants,
   ...fieldVariants,
@@ -62,6 +65,7 @@ export const templateList: Template[] = [
   ...proximityVariants,
   ...revealVariants,
   ...blankVariants,
+  ...galleryVariants,
 ];
 
 export const templates: Record<string, Template> = Object.fromEntries(
