@@ -35,6 +35,18 @@
   --chip-bg:      #374151; /* playhead chip + line */
   --chip-fg:      #ffffff;
 
+  /* ---- Beta marker (unfinished feature) — sits on the active dark tab ---- */
+  --beta-bg:      #ffffff;
+  --beta-fg:      #111827;
+
+  /* ---- View gizmo axes (Blender convention: X red, Y green, Z blue).
+         Not theme-varying: the 3D stage background is user-set, not themed. ---- */
+  --gz-x:         #e05252;
+  --gz-y:         #7db72f;
+  --gz-z:         #4a86d9;
+  --gz-neg-fill:  rgba(16, 19, 26, 0.55);  /* hollow balls, readable on any wall */
+  --gz-label:     #0f1319;                 /* letters on the filled balls */
+
   /* ---- Radii — the design is fully square ---- */
   --r-card:  0px;
   --r-ctrl:  0px;
@@ -94,4 +106,6 @@
   --inverse-fg: #111111;
   --chip-bg:    #cccccc;
   --chip-fg:    #171717;
+  --beta-bg:    #ffffff;
+  --beta-fg:    #111111;
 }

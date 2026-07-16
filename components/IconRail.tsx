@@ -1,15 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useUIStore } from '@/store/useUIStore';
 
 const NAV = [
   { id: 'library', label: 'Library', icon: (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/></svg>
   ) },
+  { id: '3d', label: '3D', icon: (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5l6.5 3.75v7.5L10 17.5l-6.5-3.75v-7.5L10 2.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M3.7 6.4L10 10l6.3-3.6M10 10v7.4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+  ) },
 ];
 
 export default function IconRail() {
-  const [active, setActive] = useState('library');
+  const active = useUIStore((s) => s.nav);
+  const setActive = useUIStore((s) => s.setNav);
   return (
     <aside className="card rail">
       <div className="rail-top">
