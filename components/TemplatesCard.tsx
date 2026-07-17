@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSceneStore } from '@/store/useSceneStore';
 import { templateList, templateGroups } from '@/templates';
 import TemplateThumb from './TemplateThumb';
+import { CollapseButton } from './TplCollapse';
 
 const Chevron = ({ dir = 'right' }: { dir?: 'right' | 'left' }) => (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={dir === 'left' ? { transform: 'rotate(180deg)' } : undefined}>
@@ -48,9 +49,12 @@ export default function TemplatesCard() {
   return (
     <section className="card templates">
       <div className="tpl-head">
-        <div className="tabs">
-          <button className={`tab ${tab === 'templates' ? 'active' : ''}`} onClick={() => setTab('templates')}>Templates</button>
-          <button className={`tab ${tab === 'custom' ? 'active' : ''}`} onClick={() => setTab('custom')}>Custom</button>
+        <div className="tpl-head-row">
+          <div className="tabs">
+            <button className={`tab ${tab === 'templates' ? 'active' : ''}`} onClick={() => setTab('templates')}>Templates</button>
+            <button className={`tab ${tab === 'custom' ? 'active' : ''}`} onClick={() => setTab('custom')}>Custom</button>
+          </div>
+          <CollapseButton />
         </div>
 
         <div className="searchbox">
