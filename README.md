@@ -1,4 +1,4 @@
-# Motion Studio
+# motion-studio-open
 
 An **open-source factory for quick videos and GIFs**. Drag in images, pick a
 motion template, tweak live controls, preview in real time, and export MP4/GIF
@@ -8,7 +8,7 @@ via native ffmpeg. Runs self-hosted on localhost — single machine, no auth.
 
 ## Try it live
 
-**https://appariciojunior.github.io/motion-jitter-clone/**
+**https://appariciojunior.github.io/motion-studio-open/**
 
 The hosted demo is a static build (auto-deployed from `main` via GitHub
 Pages) — every template, control, and preview works in the browser. The only
@@ -110,7 +110,7 @@ small and seam-oriented — most contributions touch exactly one file.
 
 ```bash
 git clone <your fork>
-cd Motion-Tool && npm install && npm run dev
+cd motion-studio-open && npm install && npm run dev
 npx tsc --noEmit   # the only required check — keep it clean
 ```
 

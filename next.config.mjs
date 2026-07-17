@@ -4,7 +4,7 @@
 // project subpath, with the server-only /api/export route removed by the
 // workflow. Unset (default) → normal dev/build with native-ffmpeg export.
 const isStatic = process.env.STATIC_EXPORT === '1';
-const basePath = isStatic ? '/motion-jitter-clone' : '';
+const basePath = isStatic ? '/motion-studio-open' : '';
 
 const nextConfig = {
   reactStrictMode: false, // avoid double Pixi mount in dev

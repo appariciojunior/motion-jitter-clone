@@ -231,11 +231,11 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
               that pipeline isn&apos;t available on this hosted demo.
             </p>
             <p>To export, clone the repo and run it locally:</p>
-            <pre><code>{`git clone https://github.com/appariciojunior/motion-jitter-clone.git
-cd motion-jitter-clone
+            <pre><code>{`git clone https://github.com/appariciojunior/motion-studio-open.git
+cd motion-studio-open
 npm install && brew install ffmpeg
 npm run dev`}</code></pre>
-            <a className="btn primary full" href="https://github.com/appariciojunior/motion-jitter-clone" target="_blank" rel="noreferrer">
+            <a className="btn primary full" href="https://github.com/appariciojunior/motion-studio-open" target="_blank" rel="noreferrer">
               View on GitHub
             </a>
           </div>

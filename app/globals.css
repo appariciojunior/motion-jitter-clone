@@ -118,6 +118,17 @@ input[type=range] { -webkit-appearance: none; appearance: none; background: none
   opacity: 0; visibility: hidden; pointer-events: none; border-right-color: transparent;
 }
 .tpl-head { padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 8px; }
+.tpl-head-row { display: flex; align-items: center; gap: 8px; }
+
+/* ---- collapsing the left column (see TplCollapse) ---- */
+.tpl-collapse, .tpl-expand {
+  flex: none; width: 26px; height: 26px; border-radius: var(--r-seg);
+  display: grid; place-items: center; color: var(--fg-faint);
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.tpl-collapse:hover, .tpl-expand:hover { background: var(--card-inset); color: var(--fg); }
+.tpl-strip { align-items: center; padding-top: 12px; }
+.app-tpl-collapsed { --templates-col: 40px; }
 .tabs {
   display: flex; background: var(--card-inset); border-radius: var(--r-ctrl);
   padding: var(--seg-pad); width: 100%;
@@ -713,6 +724,180 @@ select.field { padding-right: 26px; }
     "rail templates stage right"
     "bottom bottom bottom bottom";
 }
+
+/* ============================================================
+   WEB MODE LAYOUT — nav: "Web"
+   One sidebar, not two: layout + selection + the template's controls share
+   the right panel, and the source controls ride in the timeline. Two 280px
+   columns side by side cost the stage more than their content was worth.
+   ============================================================ */
+.app-web {
+  grid-template-columns: var(--rail-w) var(--templates-col) minmax(0, 1fr) var(--right-col);
+  grid-template-areas:
+    "rail templates stage right"
+    "rail bottom bottom bottom";
+}
+
+/* source controls in the timeline bar */
+.web-source-bar { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tl-ghost-btn {
+  display: inline-flex; align-items: center; gap: 7px; flex: none;
+  padding: 7px 12px; border-radius: var(--r-ctrl);
+  background: var(--card-inset); color: var(--fg-label);
+  font-size: var(--fs-ui); font-weight: 500;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.tl-ghost-btn:hover { background: var(--card-thumb); color: var(--fg); }
+.web-source-bar .export-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.web-source-err {
+  display: inline-flex; align-items: center; gap: 6px;
+  max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--fs-meta); color: #ff8fa3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* fullscreen source editor — code is entered rarely, tweaked constantly, so
+   it gets the whole window on demand instead of a permanent column */
+.modal.web-modal {
+  width: min(1100px, 92vw); height: 86vh;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.web-modal-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; border-bottom: 1px solid var(--line);
+}
+.web-modal-head .tabs { width: auto; flex: 1; }
+.web-modal-head .tab { flex: 0 1 auto; padding: 5px 14px; }
+.web-modal-body { flex: 1; min-height: 0; padding: 14px 18px; display: flex; }
+.web-editor-full {
+  flex: 1; min-height: 0; resize: none; padding: 12px;
+  background: var(--card-inset); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px; line-height: 18px;
+  tab-size: 2; white-space: pre; overflow: auto;
+}
+.web-editor-full:focus { outline: 1px solid var(--fg-muted); outline-offset: -1px; }
+.web-modal-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 12px 18px; border-top: 1px solid var(--line);
+}
+.web-modal-ok { font-size: var(--fs-meta); color: var(--fg-muted); }
+.web-modal-ok code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.web-modal-err {
+  font-size: var(--fs-meta); color: #ff8fa3; text-align: right;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* right panel — reopen the editor, and the derived count */
+.web-edit-code {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: 100%; padding: 8px; border-radius: var(--r-ctrl);
+  background: var(--card-inset); color: var(--fg-label);
+  font-size: var(--fs-ui); font-weight: 500;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.web-edit-code:hover { background: var(--card-thumb); color: var(--fg); }
+.web-sel-err {
+  margin: 10px 0 0; font-size: var(--fs-meta); line-height: 15px; color: #ff8fa3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-word;
+}
+.web-derived {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  font-size: var(--fs-ui); color: var(--fg);
+}
+.web-derived em { font-style: normal; font-size: var(--fs-meta); color: var(--fg-faint); }
+.web-mode-note { margin: 2px 0 0; font-size: var(--fs-meta); line-height: 15px; color: var(--fg-muted); }
+
+.web-toggle {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--fg); cursor: pointer;
+}
+.web-toggle input { accent-color: var(--seg-active-bg); cursor: pointer; }
+.web-toggle-note { color: var(--fg-muted); font-size: var(--fs-meta); }
+.web-hint { font-size: var(--fs-meta); color: var(--fg-muted); line-height: 15px; margin: 10px 14px 12px; }
+.web-hint code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* stage — the user's component lives in an isolated iframe, sized to what the
+   source renders, scaled to fit, and centred. `margin: auto` rather than flex
+   centring: at 100% zoom a component wider than the stage overflows, and flex
+   centring would pin that overflow past the scroll origin, making the left
+   edge unreachable. */
+/* the padding is also the measuring width: a fluid component measures to the
+   frame's 100%, which is the stage minus this inset, so it fits at 1:1 instead
+   of being scaled down to make room for a margin it already respects */
+.web-stage { position: relative; width: 100%; height: 100%; display: flex; overflow: auto; padding: 16px; }
+.web-frame {
+  margin: auto; flex: none; display: block; border: 0; background: transparent;
+  width: 100%; height: 100%;   /* until measured — also the measuring width */
+}
+
+/* zoom chip — bottom-right of the stage, out of the component's way */
+.web-zoom {
+  position: absolute; right: 12px; bottom: 12px; z-index: 4;
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px; border-radius: var(--r-ctrl);
+  background: var(--card); border: 1px solid var(--line);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+}
+.web-zoom-dims, .web-zoom-pct {
+  font-size: var(--fs-meta); color: var(--fg-faint); padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+.web-zoom-dims em { font-style: normal; color: var(--fg); }
+.web-auto-btn {
+  font-size: var(--fs-meta); color: var(--fg-label); background: var(--card-inset);
+  border-radius: var(--r-seg); padding: 3px 10px;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.web-auto-btn:hover { background: var(--card-thumb); color: var(--fg); }
+.web-zoom-btn {
+  padding: 4px 9px; border-radius: var(--r-seg);
+  font-size: var(--fs-meta); font-weight: 500; color: var(--fg-faint);
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.web-zoom-btn:hover { background: var(--card-inset); color: var(--fg); }
+.web-zoom-btn.active { background: var(--seg-active-bg); color: var(--seg-active-fg); }
+.web-error {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+  max-width: 80%; padding: 8px 12px; border-radius: 6px;
+  background: rgba(20,20,22,0.95); border: 1px solid rgba(255,92,124,0.4);
+  color: #ff8fa3; font-size: 11px; line-height: 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* right panel — marked elements */
+.web-sel-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.web-sel-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 6px; background: var(--card-inset);
+}
+.web-sel-idx {
+  flex: none; width: 18px; height: 18px; border-radius: 4px;
+  display: grid; place-items: center;
+  background: var(--seg-active-bg); color: var(--seg-active-fg);
+  font-size: 10px; font-weight: 600;
+}
+.web-sel-path {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px; color: var(--fg-muted);
+}
+.web-sel-rm {
+  flex: none; width: 18px; height: 18px; border: 0; border-radius: 4px;
+  background: transparent; color: var(--fg-muted); cursor: pointer;
+  font-size: 14px; line-height: 1;
+}
+.web-sel-rm:hover { background: var(--line); color: var(--fg); }
+.web-clear {
+  margin-top: 10px; width: 100%; padding: 7px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: transparent; color: var(--fg-muted); cursor: pointer;
+  font-size: 11px; font-weight: 500;
+}
+.web-clear:hover { color: var(--fg); border-color: var(--fg-muted); }
 
 /* right-panel control groups for the current 3D effect */
 .e3d-controls { display: flex; flex-direction: column; gap: 4px; }

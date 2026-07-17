@@ -1,5 +1,5 @@
 {
-  "name": "motion-studio",
+  "name": "motion-studio-open",
   "version": "1.0.0",
   "description": "Motion Studio — an open-source factory for quick videos and GIFs.",
   "main": "index.js",
@@ -16,11 +16,14 @@
   "private": "true",
   "dependencies": {
     "mp4-muxer": "^5.2.2",
+    "@tailwindcss/browser": "^4.3.3",
+    "jszip": "^3.10.1",
     "next": "^16.2.10",
     "pixi-filters": "^6.1.5",
     "pixi.js": "^8.19.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "sucrase": "^3.35.1",
     "three": "^0.185.1",
     "zustand": "^5.0.14"
   },

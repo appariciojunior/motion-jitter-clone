@@ -7,21 +7,26 @@ export interface UIState {
   theme: 'light' | 'dark';
   leftCollapsed: boolean;
   rightCollapsed: boolean;
+  tplCollapsed: boolean;    // left column folded to the original compact strip
   setNav: (nav: string) => void;
   toggleTheme: () => void;
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
+  toggleTplCollapsed: () => void;
   hydratePreferences: () => void;
 }
 
 const PREFS_KEY = 'motion-ui-preferences';
 
-function savePreferences(prefs: Pick<UIState, 'theme' | 'leftCollapsed' | 'rightCollapsed'>) {
+type UIPreferences = Pick<UIState, 'theme' | 'leftCollapsed' | 'rightCollapsed' | 'tplCollapsed'>;
+
+function savePreferences(prefs: UIPreferences) {
   if (typeof window === 'undefined') return;
   localStorage.setItem(PREFS_KEY, JSON.stringify({
     theme: prefs.theme,
     leftCollapsed: prefs.leftCollapsed,
     rightCollapsed: prefs.rightCollapsed,
+    tplCollapsed: prefs.tplCollapsed,
   }));
   document.documentElement.dataset.theme = prefs.theme;
 }
@@ -31,6 +36,7 @@ export const useUIStore = create<UIState>((set) => ({
   theme: 'light',
   leftCollapsed: false,
   rightCollapsed: false,
+  tplCollapsed: false,
   setNav: (nav) => set({ nav }),
   toggleTheme: () => set((state) => {
     const next = { ...state, theme: state.theme === 'dark' ? 'light' as const : 'dark' as const };
@@ -47,9 +53,14 @@ export const useUIStore = create<UIState>((set) => ({
     savePreferences(next);
     return { rightCollapsed: next.rightCollapsed };
   }),
+  toggleTplCollapsed: () => set((state) => {
+    const next = { ...state, tplCollapsed: !state.tplCollapsed };
+    savePreferences(next);
+    return { tplCollapsed: next.tplCollapsed };
+  }),
   hydratePreferences: () => set((state) => {
     if (typeof window === 'undefined') return {};
-    let saved: Partial<Pick<UIState, 'theme' | 'leftCollapsed' | 'rightCollapsed'>> = {};
+    let saved: Partial<UIPreferences> = {};
     try { saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}'); } catch { /* use defaults */ }
     const theme = saved.theme === 'dark' || saved.theme === 'light'
       ? saved.theme
@@ -58,6 +69,7 @@ export const useUIStore = create<UIState>((set) => ({
       theme,
       leftCollapsed: saved.leftCollapsed ?? state.leftCollapsed,
       rightCollapsed: saved.rightCollapsed ?? state.rightCollapsed,
+      tplCollapsed: saved.tplCollapsed ?? state.tplCollapsed,
     };
     savePreferences({ ...state, ...next });
     return next;
