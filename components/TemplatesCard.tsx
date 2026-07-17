@@ -44,8 +44,6 @@ export default function TemplatesCard() {
   const matches = templateList.filter(
     (t) => t.meta.name.toLowerCase().includes(q) || t.meta.group.toLowerCase().includes(q)
   );
-  const group = templateGroups.find((g) => g.group === openGroup);
-
   return (
     <section className="card templates">
       <div className="tpl-head">
@@ -110,42 +108,39 @@ export default function TemplatesCard() {
               </button>
             ))}
           </div>
-        ) : group ? (
-          // drill-in: back header + 2-col variant grid
-          <>
-            <div className="tpl-group-head">
-              <button className="tpl-back" onClick={() => setOpenGroup(null)}>
-                <Chevron dir="left" />
-              </button>
-              <span className="tpl-group-title">{group.group}</span>
-            </div>
-            <div className="tpl-grid">
-              {group.items.map((t) => (
-                <button
-                  key={t.meta.id}
-                  className={`tpl-card ${activeTemplateId === t.meta.id ? 'active' : ''}`}
-                  onClick={() => setActiveTemplate(t.meta.id)}
-                >
-                  <TemplateThumb template={t} />
-                  <span className="tpl-card-label">{t.meta.name}</span>
-                </button>
-              ))}
-            </div>
-          </>
         ) : (
-          // root: group rows
+          // Accordion: keep catalogue context while showing one group's models.
           <>
             {templateGroups.map(({ group: name, items }) => {
               const activeHere = items.some((t) => t.meta.id === activeTemplateId);
+              const isOpen = openGroup === name;
+              const panelId = `template-group-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
               return (
-                <button
-                  key={name}
-                  className={`tpl-item ${activeHere ? 'active' : ''}`}
-                  onClick={() => setOpenGroup(name)}
-                >
-                  <span className="tpl-name">{name}</span>
-                  <Chevron />
-                </button>
+                <div key={name} className={`tpl-accordion ${isOpen ? 'open' : ''}`}>
+                  <button
+                    className={`tpl-item ${activeHere || isOpen ? 'active' : ''}`}
+                    onClick={() => setOpenGroup(isOpen ? null : name)}
+                    aria-expanded={isOpen}
+                    aria-controls={panelId}
+                  >
+                    <span className="tpl-name">{name}</span>
+                    <span className="tpl-accordion-chevron"><Chevron /></span>
+                  </button>
+                  {isOpen && (
+                    <div id={panelId} className="tpl-grid tpl-grid-accordion">
+                      {items.map((t) => (
+                        <button
+                          key={t.meta.id}
+                          className={`tpl-card ${activeTemplateId === t.meta.id ? 'active' : ''}`}
+                          onClick={() => setActiveTemplate(t.meta.id)}
+                        >
+                          <TemplateThumb template={t} />
+                          <span className="tpl-card-label">{t.meta.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </>
