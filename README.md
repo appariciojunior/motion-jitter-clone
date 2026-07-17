@@ -8,7 +8,7 @@ via native ffmpeg. Runs self-hosted on localhost — single machine, no auth.
 
 ## Try it live
 
-**https://appariciojunior.github.io/motion-studio-open/**
+**https://quefreen.github.io/web-motion-export/**
 
 The hosted demo is a static build (auto-deployed from `main` via GitHub
 Pages) — every template, control, and preview works in the browser. The only
