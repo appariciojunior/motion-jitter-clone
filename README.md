@@ -149,6 +149,6 @@ colours. **New effects**: same pattern as templates, in `effects/`.
 
 ## Collaborators
 
-Thanks to [@quefreen](https://github.com/quefreen) and
+Thanks to [@appariciojunior](https://github.com/appariciojunior) and
 [@milkatx](https://github.com/milkatx) for the help, support, and quick repo
 edits.
