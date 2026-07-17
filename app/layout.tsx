@@ -6,8 +6,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'Motion Studio',
-  description: 'Motion Studio — an open-source factory for quick videos and GIFs.',
+  title: 'motion-studio-open',
+  description: 'motion-studio-open — an open-source factory for quick videos and GIFs.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

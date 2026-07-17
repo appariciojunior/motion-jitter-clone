@@ -59,7 +59,7 @@ const proximity: Template = {
     const r = v.focusRadius;
     const mag = 1 + v.magnify * Math.max(0, 1 - dist / r);
 
-    // per-tile variety: deterministic size mix and rotation jitter
+    // per-tile variety: deterministic size mix and rotation wobble
     const mix = 1 - (v.sizeMix / 100) * 0.6 * hash2(index, 13.7);
     const rotation = ((hash2(index, 71.3) - 0.5) * 2 * v.tilt * Math.PI) / 180;
 

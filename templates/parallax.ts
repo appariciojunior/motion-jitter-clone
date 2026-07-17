@@ -18,7 +18,7 @@ const parallax: Template = {
     { key: 'cornerRadius', label: 'Corner Radius', type: 'slider', min: 0, max: 100, step: 1,   default: 14 },
     { key: 'gap',          label: 'Gap',           type: 'slider', min: 80, max: 500, step: 1,  default: 260 },
     { key: 'spreadY',      label: 'Spread Y',      type: 'slider', min: 0, max: 600, step: 1,   default: 260 },
-    { key: 'jitter',       label: 'Jitter',        type: 'slider', min: 0, max: 300, step: 1,   default: 80 },
+    { key: 'scatter',      label: 'Scatter',       type: 'slider', min: 0, max: 300, step: 1,   default: 80 },
     { key: 'speed',        label: 'Speed',         type: 'slider', min: 0, max: 3, step: 0.1,   default: 0.5 },
     { key: 'direction',    label: 'Direction',     type: 'toggle', options: ['forward','reverse'], default: 'forward' },
     { key: 'offset',       label: 'Offset',        type: 'xypad',                               default: { x: 0, y: 0 } },
@@ -44,7 +44,7 @@ const parallax: Template = {
     const x = (((raw % span) + span) % span) - span / 2 + v.offset.x;
 
     // vertical placement by layer with a little deterministic scatter
-    const y = (layer - 0.5) * v.spreadY + (h(index) - 0.5) * v.jitter + v.offset.y;
+    const y = (layer - 0.5) * v.spreadY + (h(index) - 0.5) * v.scatter + v.offset.y;
 
     return {
       x,
