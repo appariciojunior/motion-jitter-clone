@@ -4,7 +4,9 @@ An **open-source factory for quick videos and GIFs**. Drag in images, pick a
 motion template, tweak live controls, preview in real time, and export MP4/GIF
 via native ffmpeg. Runs self-hosted on localhost — single machine, no auth.
 
-![UI](ui.png)
+![UI — light mode](ui-light.png)
+
+![UI — dark mode](ui-dark.png)
 
 ## Try it live
 
