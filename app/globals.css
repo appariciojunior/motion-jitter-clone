@@ -193,6 +193,25 @@ input[type=range] { -webkit-appearance: none; appearance: none; background: none
 .tpl-item.active { background: var(--card-inset); color: var(--fg); }
 .tpl-name { flex: 1; }
 .tpl-chevron { width: 12px; height: 12px; color: var(--fg-faint); display: grid; place-items: center; }
+.tpl-accordion { width: 100%; }
+.tpl-accordion-chevron {
+  width: 12px; height: 12px; color: var(--fg-faint); display: grid; place-items: center;
+  transition: transform 180ms ease, color var(--t-fast);
+}
+.tpl-accordion.open .tpl-accordion-chevron { transform: rotate(90deg); color: var(--fg); }
+.tpl-grid-accordion {
+  padding: 10px 0 18px;
+  animation: tpl-accordion-in 180ms ease-out both;
+  transform-origin: top center;
+}
+@keyframes tpl-accordion-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tpl-accordion-chevron { transition: none; }
+  .tpl-grid-accordion { animation: none; }
+}
 .tpl-item.soon { opacity: 0.45; cursor: default; }
 .tpl-soon { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-faint); border: 1px solid var(--line); border-radius: var(--r-chip); padding: 2px 5px; }
 .tpl-foot { padding: 12px 16px 16px; }
@@ -243,6 +262,20 @@ input[type=range] { -webkit-appearance: none; appearance: none; background: none
   background: var(--frame); overflow: hidden;
 }
 .tpl-thumb-el { position: absolute; background: #c9c9c9; }
+.tpl-thumb.is-previewing .tpl-thumb-el { will-change: transform, opacity; }
+.tpl-thumb::after {
+  content: '';
+  position: absolute; right: 7px; bottom: 7px; z-index: 50;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--fg-faint); opacity: 0;
+  transition: opacity var(--t-fast), background var(--t-fast);
+}
+.tpl-card:hover .tpl-thumb::after,
+.tpl-card:focus-visible .tpl-thumb::after { opacity: 0.65; }
+.tpl-thumb.is-previewing::after { opacity: 1; background: var(--fg); }
+@media (prefers-reduced-motion: reduce) {
+  .tpl-thumb::after { display: none; }
+}
 .tpl-card-label { font-size: var(--fs-meta); line-height: 16.5px; color: var(--fg-muted); text-align: center; }
 
 /* ============================================================
