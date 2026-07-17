@@ -13,7 +13,7 @@ const BG_SOURCES: { id: 'color' | 'image' | 'card'; label: string }[] = [
 
 // Pixel input that commits on blur/Enter so half-typed values don't
 // resize the canvas mid-keystroke.
-function DimInput({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
+export function DimInput({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
   const [text, setText] = useState(String(value));
   useEffect(() => setText(String(value)), [value]);
   const commit = () => {

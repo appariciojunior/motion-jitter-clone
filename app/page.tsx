@@ -14,25 +14,40 @@ import Effect3DControls from '@/components/Effect3DControls';
 import ModelControl from '@/components/ModelControl';
 import ModelColors from '@/components/ModelColors';
 import BackgroundFill from '@/components/BackgroundFill';
+import WebScenePanel from '@/components/WebScenePanel';
+import WebSelectionPanel from '@/components/WebSelectionPanel';
+import WebCodeModal from '@/components/WebCodeModal';
+import WebSourceBar from '@/components/WebSourceBar';
+import { CollapsedStrip } from '@/components/TplCollapse';
 import { useUIStore } from '@/store/useUIStore';
+import { useWebStore } from '@/store/useWebStore';
 
 // Pixi must run client-side only.
 const PreviewStage = dynamic(() => import('@/components/PreviewStage'), { ssr: false });
 // Three.js 3D stage — also client-only.
 const ThreeStage3D = dynamic(() => import('@/components/ThreeStage3D'), { ssr: false });
+// Web mode compiles user source in the browser — client-only too.
+const WebStage = dynamic(() => import('@/components/WebStage'), { ssr: false });
 
 export default function Home() {
   const nav = useUIStore((s) => s.nav);
   const is3D = nav === '3d';
+  const isWeb = nav === 'web';
+  const codeOpen = useWebStore((s) => s.codeOpen);
+  const tplCollapsed = useUIStore((s) => s.tplCollapsed);
   return (
-    <div className={`app ${is3D ? 'app-3d' : ''}`}>
+    <div className={`app ${is3D ? 'app-3d' : ''} ${isWeb ? 'app-web' : ''} ${tplCollapsed ? 'app-tpl-collapsed' : ''}`}>
       <IconRail />
 
-      {/* left column — motion templates (2D) or 3D effect picker */}
-      {is3D ? <Effects3DPanel /> : <TemplatesCard />}
+      {/* left column — motion templates (2D and web) or the 3D effect picker,
+          foldable to a strip when the stage needs the width.
+          Web mode reuses the template list wholesale: the templates are pure
+          frame→pose functions, so the picker doesn't care what renders them. */}
+      {tplCollapsed ? <CollapsedStrip /> : is3D ? <Effects3DPanel /> : <TemplatesCard />}
 
-      {/* middle SCENE column — 2D only (removed in 3D) */}
-      {!is3D && (
+      {/* middle SCENE column — 2D only. 3D and web fold everything into the
+          single right sidebar rather than run two 280px panels side by side. */}
+      {!is3D && !isWeb && (
         <section className="card controls card-scroll">
           <ScenePanel />
           <div className="hairline" />
@@ -41,7 +56,9 @@ export default function Home() {
       )}
 
       <main className="stage-col">
-        {is3D ? (
+        {isWeb ? (
+          <WebStage />
+        ) : is3D ? (
           <ThreeStage3D />
         ) : (
           <>
@@ -55,7 +72,14 @@ export default function Home() {
 
       {/* right column — canvas/assets (2D) or current 3D effect controls */}
       <section className="card right card-scroll">
-        {is3D ? (
+        {isWeb ? (
+          <>
+            {/* what animates, then how it moves */}
+            <WebSelectionPanel />
+            <div className="hairline" />
+            <WebScenePanel />
+          </>
+        ) : is3D ? (
           <>
             <ModelControl />
             <div className="hairline" />
@@ -75,10 +99,14 @@ export default function Home() {
       </section>
 
       <footer className="card bottom">
-        <Timeline />
+        {/* Video export is a 2D/3D product; web mode's deliverable is a zip
+            of the user's component, which doesn't exist yet. Its source
+            controls take that slot. */}
+        <Timeline showExport={!isWeb} extra={isWeb ? <WebSourceBar /> : undefined} />
       </footer>
 
       <WelcomeDialog />
+      {isWeb && codeOpen && <WebCodeModal />}
     </div>
   );
 }

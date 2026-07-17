@@ -25,7 +25,15 @@ function buildRuler(duration: number) {
   return { labels, dashes };
 }
 
-export default function Timeline() {
+// `extra` fills the slot the export button occupies in 2D/3D — web mode puts
+// its source controls there rather than spending a sidebar column on them.
+export default function Timeline({
+  showExport = true,
+  extra,
+}: {
+  showExport?: boolean;
+  extra?: React.ReactNode;
+}) {
   const frame = useSceneStore((s) => s.frame);
   const fps = useSceneStore((s) => s.fps);
   const duration = useSceneStore((s) => s.duration);
@@ -33,7 +41,7 @@ export default function Timeline() {
   const setPlaying = useSceneStore((s) => s.setPlaying);
   const setFrame = useSceneStore((s) => s.setFrame);
   const setDuration = useSceneStore((s) => s.setDuration);
-  const [showExport, setShowExport] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   // Spacebar toggles play/pause anywhere except while typing in a field.
   useEffect(() => {
@@ -92,12 +100,16 @@ export default function Timeline() {
         <span>s</span>
       </label>
 
-      <button className="export-btn" onClick={() => setShowExport(true)}>
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0L5 7m3 3l3-3M3 13h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        Export
-      </button>
+      {extra}
 
-      {showExport && <ExportDialog onClose={() => setShowExport(false)} />}
+      {showExport && (
+        <button className="export-btn" onClick={() => setShowExportDialog(true)}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0L5 7m3 3l3-3M3 13h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Export
+        </button>
+      )}
+
+      {showExport && showExportDialog && <ExportDialog onClose={() => setShowExportDialog(false)} />}
     </div>
   );
 }
