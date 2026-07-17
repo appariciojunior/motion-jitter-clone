@@ -3,6 +3,7 @@ import { defaultsFor, easingFor } from '@/templates';
 import type { EasingSpec } from '@/lib/easing';
 import type { CropFocus } from '@/lib/crop';
 import { DEMO_ASSETS } from '@/lib/demoAssets';
+import { idbPut, idbGet, idbDelete } from '@/lib/assetDb';
 
 // ---------- canvas dimension helpers ----------
 export const ASPECTS: Record<string, [number, number]> = {
@@ -26,8 +27,14 @@ export interface AssetItem {
   name: string;
   url: string;
   visible: boolean;
+  kind?: 'image' | 'video'; // media type; undefined = image (backward compatible)
+  origin?: 'remote' | 'upload'; // 'upload' bytes live in IndexedDB and restore on reload
   crop?: CropFocus; // cover-fit focal point 0..1 per axis; undefined = centre
 }
+
+// Upload actions accept the source Blob so its bytes can be stashed in
+// IndexedDB for persistence; it is never kept in the store itself.
+type AssetInput = Omit<AssetItem, 'id' | 'visible'> & { blob?: Blob };
 
 export interface ActiveEffect {
   instanceId: string;
@@ -91,6 +98,9 @@ export interface SceneState {
   // assets → layer slots
   assets: AssetItem[];
   cardShape: string; // scene-level crop aspect for cards: 'auto' or a CARD_SHAPES key
+  // when a card video is shorter than the clip: restart it ('loop') or freeze
+  // on its final frame ('hold') — applies to preview and export alike
+  videoEnd: 'loop' | 'hold';
 
   // effects (SEAM 2)
   effects: ActiveEffect[];
@@ -114,8 +124,8 @@ export interface SceneState {
   setLogo: (patch: Partial<LogoSettings>) => void;
   setAudioUrl: (url: string | null) => void;
 
-  addAssets: (items: Omit<AssetItem, 'id' | 'visible'>[]) => void;
-  replaceAssetAt: (index: number, item: Omit<AssetItem, 'id' | 'visible'>) => void;
+  addAssets: (items: AssetInput[]) => void;
+  replaceAssetAt: (index: number, item: AssetInput) => void;
   removeAsset: (id: string) => void;
   toggleAsset: (id: string) => void;
   reorderAssets: (from: number, to: number) => void;
@@ -123,6 +133,11 @@ export interface SceneState {
   setAssetCrop: (id: string, crop: CropFocus) => void;
   setAllAssetCrops: (crop: CropFocus) => void;
   setCardShape: (shape: string) => void;
+  setVideoEnd: (mode: 'loop' | 'hold') => void;
+
+  // persistence (see lib/scenePersist)
+  hydrate: (partial: Partial<SceneState>) => void;   // apply a loaded scene
+  rehydrateUploads: () => Promise<void>;             // rebuild upload urls from IndexedDB
 
   loadCustomPresets: () => void;
   saveCustomPreset: (name: string) => void;
@@ -141,6 +156,15 @@ export interface SceneState {
 // simple id generator (no Date.now/Math.random constraints in app runtime, but keep it counter-based for determinism)
 let _idc = 0;
 const nid = (prefix: string) => `${prefix}_${++_idc}`;
+
+// After restoring persisted assets, advance the counter past any restored ids so
+// freshly-generated ids can never collide with rehydrated ones.
+function seedIdCounter(assets: { id: string }[]) {
+  for (const a of assets) {
+    const m = /_(\d+)$/.exec(a.id);
+    if (m) _idc = Math.max(_idc, Number(m[1]));
+  }
+}
 
 const INITIAL_TEMPLATE = 'carousel';
 const initDims = dimsFor('3:4');
@@ -166,8 +190,9 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   audioUrl: null,
 
   // start populated with the bundled demo set so every template shows real motion
-  assets: DEMO_ASSETS.map((a) => ({ ...a, id: nid('asset'), visible: true })),
+  assets: DEMO_ASSETS.map((a) => ({ ...a, id: nid('asset'), visible: true, origin: 'remote' as const })),
   cardShape: 'auto',
+  videoEnd: 'loop',
   effects: [],
   customPresets: [],
 
@@ -212,24 +237,40 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   setLogo: (patch) => set((s) => ({ logo: { ...s.logo, ...patch } })),
   setAudioUrl: (url) => set(() => ({ audioUrl: url })),
 
-  addAssets: (items) =>
-    set((s) => ({
-      assets: [
-        ...s.assets,
-        ...items.map((it) => ({ ...it, id: nid('asset'), visible: true })),
-      ],
-    })),
+  addAssets: (items) => {
+    const added: AssetItem[] = items.map(({ blob, ...it }) => {
+      const id = nid('asset');
+      const origin: 'remote' | 'upload' = blob || it.url.startsWith('blob:') ? 'upload' : (it.origin ?? 'remote');
+      if (blob) idbPut(id, blob).catch(() => { /* quota — this upload won't persist */ });
+      return { ...it, id, visible: true, origin };
+    });
+    set((s) => ({ assets: [...s.assets, ...added] }));
+  },
   // Set the image at a specific slot; appends if the slot is the next empty one.
   // A new image gets a fresh (centre) crop — the old focal point rarely fits it.
-  replaceAssetAt: (index, item) =>
+  replaceAssetAt: (index, item) => {
+    const { blob, ...it } = item;
+    const origin: 'remote' | 'upload' = blob || it.url.startsWith('blob:') ? 'upload' : (it.origin ?? 'remote');
     set((s) => {
       const next = s.assets.slice();
-      if (index < next.length) next[index] = { ...next[index], name: item.name, url: item.url, crop: undefined };
-      else next.push({ ...item, id: nid('asset'), visible: true });
+      if (index < next.length) {
+        const prev = next[index];
+        if (prev.origin === 'upload') idbDelete(prev.id).catch(() => {}); // drop the replaced upload's bytes
+        if (blob) idbPut(prev.id, blob).catch(() => {});                  // store new bytes under the kept id
+        next[index] = { ...prev, name: it.name, url: it.url, kind: it.kind, origin, crop: undefined };
+      } else {
+        const id = nid('asset');
+        if (blob) idbPut(id, blob).catch(() => {});
+        next.push({ ...it, id, visible: true, origin });
+      }
       return { assets: next };
-    }),
-  removeAsset: (id) =>
-    set((s) => ({ assets: s.assets.filter((a) => a.id !== id) })),
+    });
+  },
+  removeAsset: (id) => {
+    const a = get().assets.find((x) => x.id === id);
+    if (a?.origin === 'upload') idbDelete(id).catch(() => {});
+    set((s) => ({ assets: s.assets.filter((x) => x.id !== id) }));
+  },
   toggleAsset: (id) =>
     set((s) => ({
       assets: s.assets.map((a) => (a.id === id ? { ...a, visible: !a.visible } : a)),
@@ -241,12 +282,54 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       next.splice(to, 0, moved);
       return { assets: next };
     }),
-  clearAssets: () => set(() => ({ assets: [] })),
+  clearAssets: () => {
+    for (const a of get().assets) if (a.origin === 'upload') idbDelete(a.id).catch(() => {});
+    set(() => ({ assets: [] }));
+  },
   setAssetCrop: (id, crop) =>
     set((s) => ({ assets: s.assets.map((a) => (a.id === id ? { ...a, crop } : a)) })),
   setAllAssetCrops: (crop) =>
     set((s) => ({ assets: s.assets.map((a) => ({ ...a, crop })) })),
   setCardShape: (shape) => set(() => ({ cardShape: shape })),
+  setVideoEnd: (mode) => set(() => ({ videoEnd: mode })),
+
+  // Apply a persisted scene (from lib/scenePersist). `values` is merged over the
+  // template's current defaults so a saved scene survives added/removed controls.
+  hydrate: (partial) =>
+    set((s) => {
+      const tid = partial.activeTemplateId ?? s.activeTemplateId;
+      let templateOk = true;
+      try { defaultsFor(tid); } catch { templateOk = false; } // stale/removed template → keep current
+      const assets = partial.assets ?? s.assets;
+      seedIdCounter(assets);
+      return {
+        ...s,
+        ...partial,
+        activeTemplateId: templateOk ? tid : s.activeTemplateId,
+        values: templateOk ? { ...defaultsFor(tid), ...(partial.values ?? {}) } : s.values,
+        frame: 0, // always start at the clip head
+      };
+    }),
+
+  // Rebuild object URLs for uploaded assets from their IndexedDB bytes. Runs after
+  // hydrate; assets whose bytes are gone (evicted/quota) keep an empty url and
+  // fall back to the numbered placeholder.
+  rehydrateUploads: async () => {
+    const uploads = get().assets.filter((a) => a.origin === 'upload' && !a.url);
+    if (uploads.length === 0) return;
+    const resolved = await Promise.all(
+      uploads.map(async (a) => {
+        const blob = await idbGet(a.id).catch(() => undefined);
+        return { id: a.id, url: blob ? URL.createObjectURL(blob) : '' };
+      }),
+    );
+    const urls = new Map(resolved.map((r) => [r.id, r.url]));
+    set((s) => ({
+      assets: s.assets.map((a) =>
+        a.origin === 'upload' && urls.get(a.id) ? { ...a, url: urls.get(a.id)! } : a,
+      ),
+    }));
+  },
 
   // Loaded lazily on the client (localStorage isn't available during SSR,
   // and seeding it at create() time would cause a hydration mismatch).

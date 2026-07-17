@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import IconRail from '@/components/IconRail';
 import TemplatesCard from '@/components/TemplatesCard';
@@ -15,6 +16,8 @@ import ModelControl from '@/components/ModelControl';
 import ModelColors from '@/components/ModelColors';
 import BackgroundFill from '@/components/BackgroundFill';
 import { useUIStore } from '@/store/useUIStore';
+import { useSceneStore } from '@/store/useSceneStore';
+import { loadScene, startSceneAutosave } from '@/lib/scenePersist';
 
 // Pixi must run client-side only.
 const PreviewStage = dynamic(() => import('@/components/PreviewStage'), { ssr: false });
@@ -23,9 +26,24 @@ const ThreeStage3D = dynamic(() => import('@/components/ThreeStage3D'), { ssr: f
 
 export default function Home() {
   const nav = useUIStore((s) => s.nav);
+  const leftCollapsed = useUIStore((s) => s.leftCollapsed);
+  const rightCollapsed = useUIStore((s) => s.rightCollapsed);
+  const toggleLeftPanel = useUIStore((s) => s.toggleLeftPanel);
+  const toggleRightPanel = useUIStore((s) => s.toggleRightPanel);
   const is3D = nav === '3d';
+
+  // Restore the saved scene on mount (after hydration, so no SSR mismatch), then
+  // start throttled auto-save. Uploaded media urls are rebuilt from IndexedDB.
+  useEffect(() => {
+    useUIStore.getState().hydratePreferences();
+    const saved = loadScene();
+    if (saved) useSceneStore.getState().hydrate(saved);
+    void useSceneStore.getState().rehydrateUploads();
+    return startSceneAutosave();
+  }, []);
+
   return (
-    <div className={`app ${is3D ? 'app-3d' : ''}`}>
+    <div className={`app ${is3D ? 'app-3d' : ''} ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}>
       <IconRail />
 
       {/* left column — motion templates (2D) or 3D effect picker */}
@@ -51,6 +69,24 @@ export default function Home() {
             </button>
           </>
         )}
+        <button
+          className="panel-toggle panel-toggle-left"
+          onClick={toggleLeftPanel}
+          aria-expanded={!leftCollapsed}
+          aria-label={leftCollapsed ? 'Expand left sidebar' : 'Collapse left sidebar'}
+          title={leftCollapsed ? 'Expand left sidebar' : 'Collapse left sidebar'}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3.5L10.5 8 6 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </button>
+        <button
+          className="panel-toggle panel-toggle-right"
+          onClick={toggleRightPanel}
+          aria-expanded={!rightCollapsed}
+          aria-label={rightCollapsed ? 'Expand right sidebar' : 'Collapse right sidebar'}
+          title={rightCollapsed ? 'Expand right sidebar' : 'Collapse right sidebar'}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3.5L10.5 8 6 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </button>
       </main>
 
       {/* right column — canvas/assets (2D) or current 3D effect controls */}

@@ -13,6 +13,9 @@ export default function PreviewStage() {
   const rafRef = useRef<number>(0);
   const anchorTimeRef = useRef<number>(0);   // wall-clock at playback start
   const anchorFrameRef = useRef<number>(0);  // frame at playback start
+  const lastRenderedFrameRef = useRef<number | null>(null);
+  const dirtyRef = useRef<boolean>(true);    // a paused preview redraws only when this is set
+  const lastPlayingRef = useRef<boolean>(true);
 
   const width = useSceneStore((s) => s.width);
   const height = useSceneStore((s) => s.height);
@@ -24,9 +27,20 @@ export default function PreviewStage() {
     let mounted = true;
     let renderer: IRenderer | null = null;
 
+    // Render only when there's something new to show: while playing (frame
+    // advancing), or once after any state/texture change while paused. An idle
+    // paused preview draws nothing — no wasted GPU/CPU at 60fps on a still image.
     const loop = () => {
       const st = useSceneStore.getState();
-      let frame = st.frame;
+
+      // freeze/resume card video decoding together with the timeline
+      if (st.playing !== lastPlayingRef.current) {
+        lastPlayingRef.current = st.playing;
+        if (st.playing) rendererRef.current?.resumeVideos?.();
+        else rendererRef.current?.pauseVideos?.();
+        dirtyRef.current = true;
+      }
+
       if (st.playing) {
         const now = performance.now();
         if (anchorTimeRef.current === 0) {
@@ -35,14 +49,31 @@ export default function PreviewStage() {
         }
         const elapsed = (now - anchorTimeRef.current) / 1000;
         const total = Math.max(1, Math.round(st.duration * st.fps));
-        frame = Math.floor(anchorFrameRef.current + elapsed * st.fps) % total;
+        const frame = Math.floor(anchorFrameRef.current + elapsed * st.fps) % total;
+        // Compare against the frame we actually rendered, rather than the
+        // store value. Store updates are batched and can lag behind the clock;
+        // using st.frame here can reset videos more than once per loop and
+        // makes them appear to jump backwards/forwards.
+        if (lastRenderedFrameRef.current !== null && frame < lastRenderedFrameRef.current) {
+          rendererRef.current?.restartVideos?.(); // clip wrapped — 'hold' videos restart with it
+        }
+        lastRenderedFrameRef.current = frame;
         if (frame !== st.frame) st.setFrame(frame);
+        rendererRef.current?.renderFrame(frame);
       } else {
         anchorTimeRef.current = 0;
+        lastRenderedFrameRef.current = null;
+        if (dirtyRef.current) {
+          dirtyRef.current = false;
+          rendererRef.current?.renderFrame(st.frame);
+        }
       }
-      rendererRef.current?.renderFrame(frame); // engine-agnostic realize + draw
       rafRef.current = requestAnimationFrame(loop);
     };
+
+    // any store change (control tweak, scrub, asset/effect/bg edit) means the
+    // paused preview must redraw once
+    const unsub = useSceneStore.subscribe(() => { dirtyRef.current = true; });
 
     (async () => {
       if (engine === 'webgl') {
@@ -52,15 +83,20 @@ export default function PreviewStage() {
       } else {
         renderer = new SceneRenderer();
       }
+      // async texture loads (images/videos) also need a redraw when they arrive
+      renderer.onDirty = () => { dirtyRef.current = true; };
       await renderer.init(canvasRef.current!);
       if (!mounted) { renderer.destroy(); return; }
       rendererRef.current = renderer;
       setRendererInstance(renderer);
+      dirtyRef.current = true;
+      lastPlayingRef.current = useSceneStore.getState().playing;
       rafRef.current = requestAnimationFrame(loop);
     })();
 
     return () => {
       mounted = false;
+      unsub();
       cancelAnimationFrame(rafRef.current);
       setRendererInstance(null);
       rendererRef.current = null;
@@ -71,6 +107,7 @@ export default function PreviewStage() {
   // live resize on aspect/fps-driven dimension changes
   useEffect(() => {
     rendererRef.current?.resize(width, height);
+    dirtyRef.current = true; // canvas resized — redraw even if paused
   }, [width, height]);
 
   return (

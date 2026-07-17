@@ -15,6 +15,7 @@
   "type": "module",
   "private": "true",
   "dependencies": {
+    "mp4-muxer": "^5.2.2",
     "next": "^16.2.10",
     "pixi-filters": "^6.1.5",
     "pixi.js": "^8.19.0",

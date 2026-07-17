@@ -6,6 +6,7 @@ import { useSceneStore, type SceneState } from '@/store/useSceneStore';
 import { resolveEasing } from '@/lib/easing';
 import { assetIndexForSlot } from '@/lib/motion';
 import { cardAspectFor, coverCrop, cropKey } from '@/lib/crop';
+import { advanceVideoForExport, createCardVideo, isVideoSource, prepareVideoForSequentialExport, whenVideoReady } from '@/lib/videoTexture';
 
 // Reference base long-edge (px) shared with templates (carousel BASE = 340),
 // so control values read directly in on-screen pixels.
@@ -34,6 +35,7 @@ function makePlaceholderTexture(app: PIXI.Application): PIXI.Texture {
 
 export class SceneRenderer {
   app: PIXI.Application;
+  onDirty?: () => void;   // preview loop hooks this to redraw once after async loads
   private content = new PIXI.Container();       // bg + motion (effects applied here)
   private bg = new PIXI.Graphics();
   private bgSprite = new PIXI.Sprite();          // image / card-reflected background
@@ -45,6 +47,9 @@ export class SceneRenderer {
   private placeholder!: PIXI.Texture;
   private textureCache = new Map<string, PIXI.Texture>();
   private croppedCache = new Map<string, PIXI.Texture>(); // cover-crop views over cached base textures
+  private videoEls = new Map<string, HTMLVideoElement>();  // live <video> per url, for playback + cleanup
+  private exportVideoFrames = new Map<string, { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; texture: PIXI.Texture }>();
+  private liveVideoTextures = new Map<string, PIXI.Texture>();
   private slots: Slot[] = [];
   private ready = false;
 
@@ -68,6 +73,7 @@ export class SceneRenderer {
       antialias: true,
       autoStart: false,          // we drive rendering ourselves
       preference: 'webgl',
+      powerPreference: 'high-performance', // hint the browser to use the discrete GPU
       resolution: 1,
       preserveDrawingBuffer: true, // so toDataURL reads real pixels during export
     });
@@ -98,10 +104,22 @@ export class SceneRenderer {
   // ---- asset / slot management ----
   // Loads via HTMLImageElement instead of PIXI.Assets: uploads are blob: URLs
   // with no file extension, which Assets can't route to a parser (resolves null).
-  private async loadTexture(url: string): Promise<PIXI.Texture | null> {
+  // Video assets decode into a VideoSource whose texture auto-updates each frame.
+  private async loadTexture(url: string, kind?: string): Promise<PIXI.Texture | null> {
     const cached = this.textureCache.get(url);
     if (cached) return cached;
     try {
+      if (isVideoSource(url, kind)) {
+        const video = this.videoEls.get(url) ?? createCardVideo(url);
+        this.videoEls.set(url, video);
+        await whenVideoReady(video); // videoWidth/height valid past here
+        // updateFPS:0 → re-upload the frame on every render (Ticker-driven).
+        const source = new PIXI.VideoSource({ resource: video, autoPlay: true, loop: true, muted: true, updateFPS: 0 });
+        const tex = new PIXI.Texture({ source });
+        this.textureCache.set(url, tex);
+        video.play().catch(() => { /* autoplay blocked — stays on first frame */ });
+        return tex;
+      }
       const img = new Image();
       img.src = url;
       await img.decode();
@@ -178,12 +196,13 @@ export class SceneRenderer {
       } else {
         slot.sprite.tint = 0xffffff;
         slot.label.visible = false;
-        const { url, crop } = asset;
-        this.loadTexture(url).then((base) => {
+        const { url, crop, kind } = asset;
+        this.loadTexture(url, kind).then((base) => {
           if (!base || slot.sprite.destroyed) return; // slot may be gone by now
           const tex = this.croppedView(url, base, aspect, crop);
           slot.sprite.texture = tex;
           slot.texW = tex.width; slot.texH = tex.height; slot.cornerR = -1;
+          this.onDirty?.(); // texture arrived — an idle preview must redraw
         });
       }
     });
@@ -263,6 +282,7 @@ export class SceneRenderer {
         this.logoSprite.texture = tex;
         const scale = s.logo.size / Math.max(tex.width, tex.height);
         this.logoSprite.scale.set(scale);
+        this.onDirty?.();
       });
       const pad = 32;
       const half = s.logo.size / 2;
@@ -290,7 +310,7 @@ export class SceneRenderer {
       if (bg.imageUrl && bg.imageUrl !== this.bgImageUrl) {
         this.bgImageUrl = bg.imageUrl;
         this.bgImageTex = null;
-        this.loadTexture(bg.imageUrl).then((t) => { if (t) this.bgImageTex = t; });
+        this.loadTexture(bg.imageUrl).then((t) => { if (t) { this.bgImageTex = t; this.onDirty?.(); } });
       }
       if (!bg.imageUrl) { this.bgImageUrl = ''; this.bgImageTex = null; }
       tex = this.bgImageTex;
@@ -321,6 +341,9 @@ export class SceneRenderer {
     const s = useSceneStore.getState();
 
     this.syncAssets();
+    // live loop/hold behaviour follows the scene setting (non-loop <video>
+    // naturally freezes on its last frame when it ends)
+    this.videoEls.forEach((v) => { v.loop = s.videoEnd !== 'hold'; });
     this.syncEffects();
     this.drawOverlays(s);
 
@@ -367,16 +390,102 @@ export class SceneRenderer {
     this.updateBackground(s, featured);
   }
 
+  // ---- video export sync ----
+  async beginVideoExport() {
+    if (this.videoEls.size === 0) return;
+    await Promise.all([...this.videoEls.values()].map(prepareVideoForSequentialExport));
+
+    // A live VideoSource can upload an older presented frame while repeated
+    // seeks are happening. Export through canvas snapshots instead, so every
+    // captured scene reads immutable pixels from the completed seek.
+    this.videoEls.forEach((video, url) => {
+      const live = this.textureCache.get(url);
+      if (!live || !video.videoWidth || !video.videoHeight) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(video, 0, 0);
+      const texture = PIXI.Texture.from(canvas);
+      this.liveVideoTextures.set(url, live);
+      this.exportVideoFrames.set(url, { canvas, ctx, texture });
+      this.textureCache.set(url, texture);
+    });
+    this.croppedCache.forEach((tex) => tex.destroy(false));
+    this.croppedCache.clear();
+    this.lastAssetSig = '';
+    this.syncAssets();
+    await Promise.resolve();
+  }
+
+  endVideoExport() {
+    this.liveVideoTextures.forEach((texture, url) => this.textureCache.set(url, texture));
+    this.liveVideoTextures.clear();
+    this.croppedCache.forEach((tex) => tex.destroy(false));
+    this.croppedCache.clear();
+    this.exportVideoFrames.forEach(({ texture }) => texture.destroy(true));
+    this.exportVideoFrames.clear();
+    this.lastAssetSig = '';
+    this.syncAssets();
+  }
+
+  // Live preview plays videos on wall-clock; export is frame-indexed. Seek every
+  // video card to the export time for `frame`, wait for the frame to decode, and
+  // mark its GPU texture dirty so the next render uploads exactly that frame.
+  async seekVideos(frame: number) {
+    if (this.videoEls.size === 0) return;
+    const s = useSceneStore.getState();
+    const t = frame / Math.max(1, s.fps);
+    await Promise.all([...this.videoEls.values()].map((v) => advanceVideoForExport(v, t, s.fps, s.videoEnd)));
+    // Copy decoded pixels before touching the renderer. This isolates export
+    // from the live VideoSource callback queue and makes GPU uploads ordered.
+    this.videoEls.forEach((video, url) => {
+      const snapshot = this.exportVideoFrames.get(url);
+      if (snapshot) {
+        snapshot.ctx.drawImage(video, 0, 0);
+        snapshot.texture.source.update();
+      } else {
+        (this.textureCache.get(url)?.source as PIXI.TextureSource | undefined)?.update();
+      }
+    });
+  }
+
+  // Resume live playback (export finished, or preview un-paused).
+  resumeVideos() {
+    this.videoEls.forEach((v) => { v.play().catch(() => { /* noop */ }); });
+  }
+
+  // Freeze video decoding while the preview is paused — no point spending CPU/GPU
+  // decoding frames nothing is advancing.
+  pauseVideos() {
+    this.videoEls.forEach((v) => { try { v.pause(); } catch { /* noop */ } });
+  }
+
+  // Timeline wrapped to 0 — restart 'hold' videos together with the clip.
+  restartVideos() {
+    this.videoEls.forEach((v) => {
+      // Looping videos keep their own continuous playback clock. Resetting them
+      // at every scene wrap makes longer clips visibly jump backwards inside
+      // otherwise smoothly looping cards.
+      if (v.loop) return;
+      try { v.currentTime = 0; v.play().catch(() => { /* noop */ }); } catch { /* noop */ }
+    });
+  }
+
   // Realize + render a frame synchronously (used by export).
   renderFrame(frame: number) {
     this.getFrameState(frame);
     this.app.renderer.render(this.app.stage);
   }
 
-  // Deterministic capture: realize frame, render, read pixels as PNG data URL.
+  // Deterministic capture: realize frame, render, read pixels as a JPEG data URL.
+  // JPEG (q0.92) over PNG: ~5–10× smaller + far faster to encode at 2K/4K, and
+  // the scene always paints a background so the missing alpha channel is moot.
+  // ffmpeg re-encodes to h264/gif downstream, so there's no visible quality loss.
   captureFrame(frame: number): string {
     this.renderFrame(frame);
-    return (this.app.canvas as HTMLCanvasElement).toDataURL('image/png');
+    return (this.app.canvas as HTMLCanvasElement).toDataURL('image/jpeg', 0.92);
   }
 
   // Multiply the backing-store resolution for export capture. Logical
@@ -393,6 +502,8 @@ export class SceneRenderer {
 
   destroy() {
     this.ready = false;
+    this.videoEls.forEach((v) => { try { v.pause(); v.removeAttribute('src'); v.load(); } catch { /* noop */ } });
+    this.videoEls.clear();
     try { this.app.destroy(true, { children: true, texture: false }); } catch { /* noop */ }
   }
 }

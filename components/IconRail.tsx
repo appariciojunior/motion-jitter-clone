@@ -13,7 +13,9 @@ const NAV = [
 
 export default function IconRail() {
   const active = useUIStore((s) => s.nav);
+  const theme = useUIStore((s) => s.theme);
   const setActive = useUIStore((s) => s.setNav);
+  const toggleTheme = useUIStore((s) => s.toggleTheme);
   return (
     <aside className="card rail">
       <div className="rail-top">
@@ -30,6 +32,23 @@ export default function IconRail() {
             <span className="rail-label">{n.label}</span>
           </button>
         ))}
+      </div>
+      <div className="rail-bottom">
+        <button
+          className="rail-item rail-theme"
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Use light theme' : 'Use dark theme'}
+          title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+        >
+          <span className="rail-ico">
+            {theme === 'dark' ? (
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="3.25" stroke="currentColor" strokeWidth="1.5"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M15.7 12.6A6 6 0 017.4 4.3 6.1 6.1 0 1015.7 12.6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+            )}
+          </span>
+          <span className="rail-label">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+        </button>
       </div>
     </aside>
   );

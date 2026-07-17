@@ -3,6 +3,8 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
+:root { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 body {
   background: var(--stage);
   color: var(--fg-body);
@@ -38,16 +40,22 @@ input[type=range] { -webkit-appearance: none; appearance: none; background: none
    timeline bar spans the bottom (rail excluded).
    ============================================================ */
 .app {
+  --templates-col: var(--tpl-w);
+  --controls-col: var(--panel-w);
+  --right-col: var(--panel-w);
   height: 100vh;
   display: grid;
-  grid-template-columns: var(--rail-w) var(--tpl-w) 1fr var(--panel-w) var(--panel-w);
+  grid-template-columns: var(--rail-w) var(--templates-col) minmax(0, 1fr) var(--controls-col) var(--right-col);
   grid-template-rows: 1fr var(--bottom-h);
   grid-template-areas:
     "rail templates stage controls right"
     "rail bottom bottom bottom bottom";
   background: var(--card);
   overflow: hidden;
+  transition: grid-template-columns 180ms ease;
 }
+.app.left-collapsed { --templates-col: 0px; }
+.app.right-collapsed { --controls-col: 0px; --right-col: 0px; }
 
 .card {
   background: var(--card);
@@ -99,11 +107,16 @@ input[type=range] { -webkit-appearance: none; appearance: none; background: none
 .rail-item.active { background: var(--card-inset); color: var(--fg); }
 .rail-ico { width: 20px; height: 20px; display: grid; place-items: center; }
 .rail-label { font-size: 8px; line-height: 10px; font-weight: 600; }
+.rail-bottom { padding: 8px; border-top: 1px solid var(--line); }
+.rail-theme { width: 100%; margin: 0; }
 
 /* ============================================================
    TEMPLATES CARD — header pad 14/12/10, tabs + search h34
    ============================================================ */
-.templates { grid-area: templates; border-right: 1px solid var(--line); }
+.templates { grid-area: templates; border-right: 1px solid var(--line); transition: opacity 140ms ease; }
+.app.left-collapsed .templates {
+  opacity: 0; visibility: hidden; pointer-events: none; border-right-color: transparent;
+}
 .tpl-head { padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 8px; }
 .tabs {
   display: flex; background: var(--card-inset); border-radius: var(--r-ctrl);
@@ -186,7 +199,7 @@ input[type=range] { -webkit-appearance: none; appearance: none; background: none
 .tpl-card-custom:hover .tpl-del { opacity: 1; }
 /* Figma Save-Btn: dashed #d1d5db outline, 13px #9ca3af */
 .tpl-foot .btn {
-  background: transparent; border: 1px dashed #d1d5db;
+  background: transparent; border: 1px dashed var(--line);
   color: var(--fg-faint); font-size: var(--fs-label); padding: 9px 16px; height: auto;
 }
 .tpl-foot .btn:hover { background: transparent; border-color: var(--handle); color: var(--fg-muted); }
@@ -226,8 +239,12 @@ input[type=range] { -webkit-appearance: none; appearance: none; background: none
    ============================================================ */
 /* scene panel sits right of the canvas; sections use 14px h-padding
    (canvas-settings panel keeps the 20px default) */
-.controls { grid-area: controls; border-left: 1px solid var(--line); --pad-sect: 14px; }
-.right { grid-area: right; border-left: 1px solid var(--line); }
+.controls { grid-area: controls; border-left: 1px solid var(--line); --pad-sect: 14px; transition: opacity 140ms ease; }
+.right { grid-area: right; border-left: 1px solid var(--line); transition: opacity 140ms ease; }
+.app.right-collapsed .controls,
+.app.right-collapsed .right {
+  opacity: 0; visibility: hidden; pointer-events: none; border-left-color: transparent;
+}
 
 .ctl-row { display: flex; flex-direction: column; gap: var(--gap-tight); }
 .ctl-label { font-size: var(--fs-label); line-height: var(--lh-label); color: var(--fg-label); }
@@ -426,6 +443,23 @@ select.field { padding-right: 26px; }
    CANVAS STAGE
    ============================================================ */
 .stage-col { grid-area: stage; position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; background: var(--stage); }
+.panel-toggle {
+  position: absolute; top: 50%; z-index: 50;
+  width: 32px; height: 44px;
+  display: grid; place-items: center;
+  color: var(--fg-muted); background: color-mix(in srgb, var(--card) 92%, transparent);
+  border: 1px solid var(--line); border-radius: var(--r-ctrl);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(8px);
+  transform: translateY(-50%);
+  transition: color var(--t-fast), background var(--t-fast);
+}
+.panel-toggle:hover { color: var(--fg); background: var(--card); }
+.panel-toggle svg { transition: transform 180ms ease; }
+.panel-toggle-left { left: 12px; }
+.panel-toggle-right { right: 12px; }
+.app:not(.left-collapsed) .panel-toggle-left svg { transform: rotate(180deg); }
+.app.right-collapsed .panel-toggle-right svg { transform: rotate(180deg); }
 .stage-wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 48px; }
 .stage-canvas { max-width: 100%; max-height: 100%; width: auto; height: auto; border-radius: var(--r-ctrl); }
 .stage-fs {
@@ -674,7 +708,7 @@ select.field { padding-right: 26px; }
    3D MODE LAYOUT — drop the middle SCENE column (nav: "3D")
    ============================================================ */
 .app-3d {
-  grid-template-columns: var(--rail-w) var(--panel-w) 1fr var(--panel-w);
+  grid-template-columns: var(--rail-w) var(--templates-col) minmax(0, 1fr) var(--right-col);
   grid-template-areas:
     "rail templates stage right"
     "bottom bottom bottom bottom";
