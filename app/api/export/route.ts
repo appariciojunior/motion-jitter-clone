@@ -31,6 +31,41 @@ function run(cmd: string, args: string[]): Promise<void> {
   });
 }
 
+// Build an all-intra (every-frame-keyframe) proxy of an uploaded video. Normal
+// H.264 has keyframes seconds apart, so the per-frame seeks the export loop does
+// force the browser to re-decode a whole GOP per captured frame — that's why
+// exports crawl with video cards. An intra-only proxy makes every seek decode
+// exactly one frame. Body: raw video bytes; response: { url } under /exports.
+export async function PUT(req: NextRequest) {
+  try {
+    const buf = Buffer.from(await req.arrayBuffer());
+    if (buf.length === 0) return NextResponse.json({ error: 'empty body' }, { status: 400 });
+    if (buf.length > 512 * 1024 * 1024) return NextResponse.json({ error: 'too large' }, { status: 413 });
+    const contentHash = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 24);
+    await fs.mkdir(EXPORTS_DIR, { recursive: true });
+    const out = `proxy_${contentHash}.mp4`;
+    const outPath = path.join(EXPORTS_DIR, out);
+    try {
+      const existing = await fs.stat(outPath);
+      if (existing.size > 0) return NextResponse.json({ url: `/exports/${out}` });
+    } catch { /* build and cache it below */ }
+    const id = crypto.randomUUID();
+    const dir = sessionDir(id);
+    await fs.mkdir(dir, { recursive: true });
+    const input = path.join(dir, 'proxy-input');
+    await fs.writeFile(input, buf);
+    // -g 1: intra-only · -an: card videos render muted · veryfast keeps this a
+    // few-seconds one-time cost, cached client-side per asset
+    await run('ffmpeg', ['-y', '-i', input, '-an', '-c:v', 'libx264', '-preset', 'veryfast',
+      '-tune', 'fastdecode', '-g', '1', '-bf', '0', '-sc_threshold', '0',
+      '-pix_fmt', 'yuv420p', '-crf', '18', '-movflags', '+faststart', outPath]);
+    await fs.rm(dir, { recursive: true, force: true });
+    return NextResponse.json({ url: `/exports/${out}` });
+  } catch (e: any) {
+    return NextResponse.json({ error: String(e?.message ?? e) }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'bad json' }, { status: 400 }); }
@@ -50,8 +85,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'bad params' }, { status: 400 });
       }
       const dir = sessionDir(sessionId);
-      const base64 = String(dataUrl).replace(/^data:image\/png;base64,/, '');
-      const file = path.join(dir, `frame_${String(idx).padStart(5, '0')}.png`);
+      const base64 = String(dataUrl).replace(/^data:image\/\w+;base64,/, '');
+      const file = path.join(dir, `frame_${String(idx).padStart(5, '0')}.jpg`);
       await fs.writeFile(file, Buffer.from(base64, 'base64'));
       return NextResponse.json({ ok: true });
     }
@@ -63,7 +98,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'bad params' }, { status: 400 });
       }
       const dir = sessionDir(sessionId);
-      const pattern = path.join(dir, 'frame_%05d.png');
+      const pattern = path.join(dir, 'frame_%05d.jpg');
       await fs.mkdir(EXPORTS_DIR, { recursive: true });
 
       // Exact output size when the client provides one (already even-rounded);
@@ -85,10 +120,12 @@ export async function POST(req: NextRequest) {
       if (format === 'mp4' || format === 'both') {
         const out = `motion_${sessionId}.mp4`;
         const outPath = path.join(EXPORTS_DIR, out);
-        const args = ['-y', '-framerate', String(fps), '-i', pattern];
+        const args = ['-y', '-start_number', '0', '-framerate', String(fps), '-i', pattern];
         if (audioFile) args.push('-i', audioFile);
         args.push('-vf', sizeFilter);
-        args.push('-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18');
+        // veryfast: 2–4× faster encode than the default 'medium' for a marginal
+        // size increase — this path is now the fallback behind WebCodecs anyway.
+        args.push('-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-crf', '18');
         if (audioFile) args.push('-c:a', 'aac', '-shortest');
         args.push(outPath);
         await run('ffmpeg', args);
@@ -99,9 +136,9 @@ export async function POST(req: NextRequest) {
         const palette = path.join(dir, 'palette.png');
         const out = `motion_${sessionId}.gif`;
         const outPath = path.join(EXPORTS_DIR, out);
-        await run('ffmpeg', ['-y', '-framerate', String(fps), '-i', pattern,
+        await run('ffmpeg', ['-y', '-start_number', '0', '-framerate', String(fps), '-i', pattern,
           '-vf', `fps=${fps},${sizeFilter},palettegen`, palette]);
-        await run('ffmpeg', ['-y', '-framerate', String(fps), '-i', pattern, '-i', palette,
+        await run('ffmpeg', ['-y', '-start_number', '0', '-framerate', String(fps), '-i', pattern, '-i', palette,
           '-filter_complex', `fps=${fps},${sizeFilter} [x]; [x][1:v] paletteuse`, outPath]);
         files.push(out);
       }

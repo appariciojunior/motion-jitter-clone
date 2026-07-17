@@ -13,6 +13,22 @@ export interface IRenderer {
   // Multiply the backing-store resolution for export capture (logical size
   // unchanged, so template layout is untouched).
   setCaptureScale(k: number): void;
+  // The live canvas the scene draws into (WebCodecs export copies frames from it).
+  extractCanvas(): HTMLCanvasElement;
   syncAssets(): void;
+  // Video cards only: advance decoded video frames to the export time for
+  // deterministic capture; resume/pause live playback.
+  seekVideos?(frame: number): Promise<void>;
+  resumeVideos?(): void;
+  pauseVideos?(): void;
+  // Called when the preview timeline wraps to frame 0, so 'hold' videos
+  // (loop=false, frozen at their end) restart together with the clip.
+  restartVideos?(): void;
+  // Prepare and release the forward-only video decode pass used by export.
+  beginVideoExport?(): Promise<void>;
+  endVideoExport?(): void;
+  // Set by the preview loop: the renderer calls it when an async texture finishes
+  // loading, so an idle (non-playing) preview knows to draw one more frame.
+  onDirty?: () => void;
   destroy(): void;
 }

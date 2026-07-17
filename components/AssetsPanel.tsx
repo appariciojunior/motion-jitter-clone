@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useSceneStore, type AssetItem } from '@/store/useSceneStore';
 import { getTemplate } from '@/templates';
 import { CARD_SHAPES, DEFAULT_FOCUS, type CropFocus } from '@/lib/crop';
+import { isVideoSource } from '@/lib/videoTexture';
 
 const SHAPE_OPTIONS = ['auto', ...Object.keys(CARD_SHAPES)];
 
@@ -66,6 +67,9 @@ export default function AssetsPanel() {
   const clearAssets = useSceneStore((s) => s.clearAssets);
   const cardShape = useSceneStore((s) => s.cardShape);
   const setCardShape = useSceneStore((s) => s.setCardShape);
+  const videoEnd = useSceneStore((s) => s.videoEnd);
+  const setVideoEnd = useSceneStore((s) => s.setVideoEnd);
+  const hasVideo = useSceneStore((s) => s.assets.some((a) => isVideoSource(a.url, a.kind)));
   const fullBleed = useSceneStore((s) => getTemplate(s.activeTemplateId).meta.cardAspect === 'canvas');
   const inputRef = useRef<HTMLInputElement>(null);
   const slotInputRef = useRef<HTMLInputElement>(null);
@@ -125,8 +129,13 @@ export default function AssetsPanel() {
 
   const ingest = (files: FileList | File[]) => {
     const items = Array.from(files)
-      .filter((f) => f.type.startsWith('image/'))
-      .map((f) => ({ name: f.name, url: URL.createObjectURL(f) }));
+      .filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/'))
+      .map((f) => ({
+        name: f.name,
+        url: URL.createObjectURL(f),
+        kind: (f.type.startsWith('video/') ? 'video' : 'image') as 'image' | 'video',
+        blob: f, // stashed in IndexedDB by the store so the upload survives a refresh
+      }));
     if (items.length) addAssets(items);
   };
 
@@ -156,8 +165,8 @@ export default function AssetsPanel() {
           onDragLeave={() => setDropActive(false)}
           onDrop={(e) => { e.preventDefault(); setDropActive(false); ingest(e.dataTransfer.files); }}
         >
-          {repeat ? 'Drop images — a few are enough, they repeat' : `Drop images or click to fill ${count} ${count === 1 ? 'slot' : 'slots'}`}
-          <input ref={inputRef} type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && ingest(e.target.files)} />
+          {repeat ? 'Drop images or videos — a few are enough, they repeat' : `Drop images or videos to fill ${count} ${count === 1 ? 'slot' : 'slots'}`}
+          <input ref={inputRef} type="file" accept="image/*,video/*" multiple hidden onChange={(e) => e.target.files && ingest(e.target.files)} />
         </div>
 
         <div className="asset-meta">
@@ -190,15 +199,37 @@ export default function AssetsPanel() {
           </div>
         )}
 
+        {/* when a card video is shorter than the clip: restart or freeze at the end */}
+        {hasVideo && (
+          <>
+            <div className="asset-meta">
+              <span>Video end</span>
+            </div>
+            <div className="pills shape-pills">
+              <button className={`pill ${videoEnd === 'loop' ? 'active' : ''}`} onClick={() => setVideoEnd('loop')} title="Restart the video when it ends">
+                Loop
+              </button>
+              <button className={`pill ${videoEnd === 'hold' ? 'active' : ''}`} onClick={() => setVideoEnd('hold')} title="Freeze on the final frame until the clip ends">
+                Hold last frame
+              </button>
+            </div>
+          </>
+        )}
+
         {/* hidden picker for empty-slot uploads */}
         <input
           ref={slotInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) replaceAssetAt(slotTarget.current, { name: f.name, url: URL.createObjectURL(f) });
+            if (f) replaceAssetAt(slotTarget.current, {
+              name: f.name,
+              url: URL.createObjectURL(f),
+              kind: f.type.startsWith('video/') ? 'video' : 'image',
+              blob: f,
+            });
             e.target.value = '';
           }}
         />
@@ -216,8 +247,32 @@ export default function AssetsPanel() {
                 onPointerCancel={onRowPointerCancel}
               >
                 <span className="asset-idx">{i + 1}</span>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="asset-thumb" src={a.url} alt={a.name} onClick={() => openSlotPicker(i)} title="Replace" />
+                {!a.url ? (
+                  // persisted upload still resolving from IndexedDB (or its bytes
+                  // are gone) — show a clickable placeholder, never src="".
+                  <span className="asset-thumb asset-thumb-empty" onClick={() => openSlotPicker(i)} title="Re-add file">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                  </span>
+                ) : isVideoSource(a.url, a.kind) ? (
+                  // play only on hover — a still poster frame otherwise, so N video
+                  // thumbnails don't all decode in a loop and burn CPU/GPU
+                  <video
+                    className="asset-thumb"
+                    src={a.url}
+                    muted
+                    playsInline
+                    loop
+                    preload="metadata"
+                    onLoadedMetadata={(e) => { try { e.currentTarget.currentTime = 0.05; } catch { /* noop */ } }}
+                    onMouseEnter={(e) => { e.currentTarget.play().catch(() => { /* noop */ }); }}
+                    onMouseLeave={(e) => { const v = e.currentTarget; v.pause(); try { v.currentTime = 0.05; } catch { /* noop */ } }}
+                    onClick={() => openSlotPicker(i)}
+                    title="Replace"
+                  />
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img className="asset-thumb" src={a.url} alt={a.name} onClick={() => openSlotPicker(i)} title="Replace" />
+                )}
                 <span className="asset-name" title={a.name}>{a.name}</span>
                 <button
                   className={`icon-btn ${a.crop && (a.crop.x !== 0.5 || a.crop.y !== 0.5) ? 'crop-set' : ''}`}

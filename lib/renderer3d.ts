@@ -5,6 +5,7 @@ import { resolveEasing } from '@/lib/easing';
 import { assetIndexForSlot, clamp, lerp } from '@/lib/motion';
 import { loadImage } from '@/lib/textureLoad';
 import { cardAspectFor, coverCrop, cropKey } from '@/lib/crop';
+import { advanceVideoForExport, createCardVideo, isVideoSource, prepareVideoForSequentialExport } from '@/lib/videoTexture';
 import type { IRenderer } from '@/lib/rendererTypes';
 
 // Shared with the Pixi renderer so control values read identically in px.
@@ -75,12 +76,15 @@ function makePlaceholderTexture(label: string): THREE.CanvasTexture {
 // engine-agnostic. M1 scope: cards + solid/gradient-as-solid background; no
 // effects, image/card backgrounds, logo, safe-area, or cornerRadius yet.
 export class SceneRenderer3D implements IRenderer {
+  onDirty?: () => void;   // preview loop hooks this to redraw once after async loads
   private renderer!: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(50, 1, 1, 40000);
   private slots: Slot3D[] = [];
   private textureCache = new Map<string, THREE.Texture>();
   private croppedCache = new Map<string, THREE.Texture>(); // cover-crop clones (repeat/offset) of cached bases
+  private videoEls = new Map<string, HTMLVideoElement>();   // live <video> per url, for playback + cleanup
+  private exportVideoFrames = new Map<string, { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; texture: THREE.CanvasTexture }>();
   private placeholders = new Map<number, THREE.CanvasTexture>();
   private cornerMaps = new Map<string, THREE.CanvasTexture>();
   private gradientTex: THREE.CanvasTexture | null = null;
@@ -106,6 +110,7 @@ export class SceneRenderer3D implements IRenderer {
       antialias: true,
       alpha: false,
       preserveDrawingBuffer: true, // required for toDataURL export capture
+      powerPreference: 'high-performance', // hint the browser to use the discrete GPU
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.setPixelRatio(1);
@@ -200,6 +205,48 @@ export class SceneRenderer3D implements IRenderer {
         slot.mesh.material.map = ph;
         slot.mesh.material.needsUpdate = true;
         slot.texW = 480; slot.texH = 600;
+      } else if (isVideoSource(asset.url, asset.kind)) {
+        const { url, crop } = asset;
+        const frozen = this.exportVideoFrames.get(url);
+        if (frozen) {
+          const { tex, fw, fh } = this.croppedView(url, frozen.texture, aspect, crop);
+          slot.mesh.material.map = tex;
+          slot.mesh.material.needsUpdate = true;
+          slot.texW = fw; slot.texH = fh;
+          slot.cornerR = -1;
+          return;
+        }
+        // Live video card: cover-crop via a per-(url,crop) VideoTexture that
+        // wraps a shared <video>. A dedicated VideoTexture (not a clone) keeps
+        // three's auto-update (requestVideoFrameCallback) working per slot.
+        let video = this.videoEls.get(url);
+        if (!video) {
+          video = createCardVideo(url);
+          this.videoEls.set(url, video);
+          video.play().catch(() => { /* autoplay blocked — first frame only */ });
+        }
+        const applyVid = (v: HTMLVideoElement) => {
+          const vw = v.videoWidth, vh = v.videoHeight;
+          if (!vw || !vh || !this.ready) return;
+          const { fx, fy, fw, fh } = coverCrop(vw, vh, aspect, crop);
+          const key = cropKey(url, aspect, crop);
+          let tex = this.croppedCache.get(key);
+          if (!tex) {
+            const vt = new THREE.VideoTexture(v);
+            vt.colorSpace = THREE.SRGBColorSpace;
+            vt.repeat.set(fw / vw, fh / vh);
+            vt.offset.set(fx / vw, 1 - (fy + fh) / vh); // three's V origin is bottom
+            tex = vt;
+            this.croppedCache.set(key, tex);
+          }
+          slot.mesh.material.map = tex;
+          slot.mesh.material.needsUpdate = true;
+          slot.texW = fw; slot.texH = fh;
+          slot.cornerR = -1; // aspect changed → rebuild the corner mask
+          this.onDirty?.();
+        };
+        if (video.videoWidth) applyVid(video);
+        else video.addEventListener('loadeddata', () => applyVid(video!), { once: true });
       } else {
         const { url, crop } = asset;
         const applyCropped = (base: THREE.Texture) => {
@@ -208,6 +255,7 @@ export class SceneRenderer3D implements IRenderer {
           slot.mesh.material.needsUpdate = true;
           slot.texW = fw; slot.texH = fh;
           slot.cornerR = -1; // aspect changed → rebuild the corner mask
+          this.onDirty?.();
         };
         const cached = this.textureCache.get(url);
         if (cached) {
@@ -306,6 +354,7 @@ export class SceneRenderer3D implements IRenderer {
           this.logoMesh.material.map = tex;
           this.logoMesh.material.needsUpdate = true;
           this.logoMesh.userData.aspect = img.width / img.height;
+          this.onDirty?.();
         });
       }
       const aspect: number = this.logoMesh.userData.aspect ?? 1;
@@ -327,6 +376,8 @@ export class SceneRenderer3D implements IRenderer {
     if (!this.ready) return;
     const s = useSceneStore.getState();
     this.syncAssets();
+    // live loop/hold behaviour follows the scene setting
+    this.videoEls.forEach((v) => { v.loop = s.videoEnd !== 'hold'; });
     this.syncScenery();
 
     this.updateCamera(Number(s.values.perspective ?? 100));
@@ -368,6 +419,68 @@ export class SceneRenderer3D implements IRenderer {
     }
   }
 
+  // ---- video export sync ---- (see the Pixi renderer for the rationale)
+  async beginVideoExport() {
+    if (this.videoEls.size === 0) return;
+    await Promise.all([...this.videoEls.values()].map(prepareVideoForSequentialExport));
+    this.videoEls.forEach((video, url) => {
+      if (!video.videoWidth || !video.videoHeight) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(video, 0, 0);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      this.exportVideoFrames.set(url, { canvas, ctx, texture });
+    });
+    this.croppedCache.forEach((tex) => tex.dispose());
+    this.croppedCache.clear();
+    this.lastAssetSig = '';
+    this.syncAssets();
+  }
+
+  endVideoExport() {
+    this.croppedCache.forEach((tex) => tex.dispose());
+    this.croppedCache.clear();
+    this.exportVideoFrames.forEach(({ texture }) => texture.dispose());
+    this.exportVideoFrames.clear();
+    this.lastAssetSig = '';
+    this.syncAssets();
+  }
+
+  async seekVideos(frame: number) {
+    if (this.videoEls.size === 0) return;
+    const s = useSceneStore.getState();
+    const t = frame / Math.max(1, s.fps);
+    await Promise.all([...this.videoEls.values()].map((v) => advanceVideoForExport(v, t, s.fps, s.videoEnd)));
+    this.videoEls.forEach((video, url) => {
+      const snapshot = this.exportVideoFrames.get(url);
+      if (snapshot) {
+        snapshot.ctx.drawImage(video, 0, 0);
+        snapshot.texture.needsUpdate = true;
+      }
+    });
+  }
+
+  resumeVideos() {
+    this.videoEls.forEach((v) => { v.play().catch(() => { /* noop */ }); });
+  }
+
+  pauseVideos() {
+    this.videoEls.forEach((v) => { try { v.pause(); } catch { /* noop */ } });
+  }
+
+  restartVideos() {
+    this.videoEls.forEach((v) => {
+      // Looping videos keep their own continuous playback clock. Only videos
+      // frozen by the "hold" mode need to restart with the scene timeline.
+      if (v.loop) return;
+      try { v.currentTime = 0; v.play().catch(() => { /* noop */ }); } catch { /* noop */ }
+    });
+  }
+
   renderFrame(frame: number) {
     if (!this.ready) return;
     this.getFrameState(frame);
@@ -380,7 +493,12 @@ export class SceneRenderer3D implements IRenderer {
 
   captureFrame(frame: number): string {
     this.renderFrame(frame);
-    return this.renderer.domElement.toDataURL('image/png');
+    // JPEG (q0.92) — see the Pixi renderer's captureFrame for the rationale.
+    return this.renderer.domElement.toDataURL('image/jpeg', 0.92);
+  }
+
+  extractCanvas(): HTMLCanvasElement {
+    return this.renderer.domElement;
   }
 
   destroy() {
@@ -395,6 +513,8 @@ export class SceneRenderer3D implements IRenderer {
     this.textureCache.clear();
     this.croppedCache.forEach((t) => t.dispose());
     this.croppedCache.clear();
+    this.videoEls.forEach((v) => { try { v.pause(); v.removeAttribute('src'); v.load(); } catch { /* noop */ } });
+    this.videoEls.clear();
     this.placeholders.forEach((t) => t.dispose());
     this.placeholders.clear();
     this.cornerMaps.forEach((t) => t.dispose());

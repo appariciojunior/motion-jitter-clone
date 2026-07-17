@@ -4,10 +4,15 @@ import { useState } from 'react';
 import { useSceneStore } from '@/store/useSceneStore';
 import { getRendererInstance } from '@/lib/rendererInstance';
 import { BASE_PATH, IS_STATIC_EXPORT } from '@/lib/paths';
+import { supportsWebCodecs, encodeMp4WebCodecs } from '@/lib/webcodecsExport';
+
+// An export artifact: server files carry a /exports url; WebCodecs results are
+// local Blobs (url is an object URL for the download link).
+interface OutputFile { name: string; url: string; blob?: Blob }
 
 type Fmt = 'mp4' | 'gif' | 'both';
 type Res = '1080p' | '2k' | '4k' | 'exact';
-type Phase = 'idle' | 'capturing' | 'encoding' | 'done' | 'error';
+type Phase = 'idle' | 'preparing' | 'capturing' | 'encoding' | 'done' | 'error';
 
 // Presets are defined by the shortest edge (vertical 1080p = 1080×1920).
 const RES_SHORT: Record<Exclude<Res, 'exact'>, number> = { '1080p': 1080, '2k': 1440, '4k': 2160 };
@@ -51,8 +56,60 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [captured, setCaptured] = useState(0);
   const [total, setTotal] = useState(0);
-  const [outputs, setOutputs] = useState<string[]>([]);
+  const [outputs, setOutputs] = useState<OutputFile[]>([]);
+  const [engine, setEngine] = useState<'webcodecs' | 'ffmpeg'>('ffmpeg');
   const [err, setErr] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [savedTo, setSavedTo] = useState<string | null>(null);
+  const [saveErr, setSaveErr] = useState('');
+
+  // File System Access API — Chromium (Edge/Chrome) only. Lets the user pick a
+  // destination folder; falls back to the download links when unavailable.
+  const canPickDir = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
+
+  const fileBytes = async (file: OutputFile): Promise<Blob> => {
+    if (file.blob) return file.blob; // WebCodecs result — already local
+    const resp = await fetch(file.url);
+    if (!resp.ok) throw new Error(`could not read ${file.name}`);
+    return resp.blob();
+  };
+
+  // Copy the freshly-encoded files into a folder the user picks. Folder-level
+  // write permission is often denied (the browser's "save changes" prompt, or
+  // Windows/OneDrive controlled-folder protection) — when that happens, fall
+  // back to a per-file "Save as" dialog, which needs no folder permission.
+  const saveToFolder = async () => {
+    setSaveErr('');
+    setSaving(true);
+    try {
+      try {
+        const dir = await window.showDirectoryPicker({ id: 'motion-exports', mode: 'readwrite' });
+        for (const file of outputs) {
+          const handle = await dir.getFileHandle(file.name, { create: true });
+          const writable = await handle.createWritable();
+          await writable.write(await fileBytes(file));
+          await writable.close();
+        }
+        setSavedTo(dir.name);
+        return;
+      } catch (e: any) {
+        if (e?.name === 'AbortError') return; // user cancelled the picker
+        if (e?.name !== 'NotAllowedError' && e?.name !== 'SecurityError') throw e;
+        // fall through — write access to the folder was denied
+      }
+      for (const file of outputs) {
+        const handle = await window.showSaveFilePicker({ suggestedName: file.name });
+        const writable = await handle.createWritable();
+        await writable.write(await fileBytes(file));
+        await writable.close();
+      }
+      setSavedTo(outputs.map((o) => o.name).join(', '));
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') setSaveErr(String(e?.message ?? e)); // ignore user cancel
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const run = async () => {
     const s = store.getState();
@@ -67,12 +124,55 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
     setPhase('capturing');
     setErr('');
 
+    // Fast path — in-browser hardware H.264 via WebCodecs (no per-frame HTTP, no
+    // server re-encode). GIF and audio muxing still need the ffmpeg pipeline.
+    if (format === 'mp4' && !s.audioUrl && supportsWebCodecs()) {
+      try {
+        // prepare video cards for one forward decode pass during capture
+        setPhase('preparing');
+        await renderer.beginVideoExport?.();
+        setPhase('capturing');
+        renderer.setCaptureScale(target.k);
+        const blob = await encodeMp4WebCodecs({
+          width: target.width,
+          height: target.height,
+          fps: s.fps,
+          totalFrames,
+          renderFrame: async (f) => {
+            await renderer.seekVideos?.(f); // frame-accurate video cards
+            renderer.renderFrame(f);
+            return renderer.extractCanvas();
+          },
+          onProgress: setCaptured,
+        });
+        setEngine('webcodecs');
+        const name = `motion_${Date.now().toString(36)}.mp4`;
+        setOutputs([{ name, url: URL.createObjectURL(blob), blob }]);
+        setPhase('done');
+        if (wasPlaying) s.setPlaying(true);
+        return;
+      } catch {
+        // encoder unavailable/failed mid-run — fall through to the ffmpeg path
+        setCaptured(0);
+        setPhase('capturing');
+      } finally {
+        renderer.endVideoExport?.();
+        renderer.setCaptureScale(1);
+        renderer.resumeVideos?.();
+        if (!wasPlaying) renderer.pauseVideos?.();
+      }
+    }
+
     try {
+      setPhase('preparing');
+      await renderer.beginVideoExport?.();
+      setPhase('capturing');
       const { sessionId } = await post({ action: 'begin' });
 
       renderer.setCaptureScale(target.k); // hi-res backing store; layout untouched
       try {
         for (let f = 0; f < totalFrames; f++) {
+          await renderer.seekVideos?.(f);                 // frame-accurate video cards (no-op without video)
           const dataUrl = renderer.captureFrame(f);       // time = frame counter, never wall-clock
           await post({ action: 'frame', sessionId, index: f, dataUrl });
           setCaptured(f + 1);
@@ -80,7 +180,9 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
           if (f % 5 === 0) await new Promise((r) => setTimeout(r, 0));
         }
       } finally {
+        renderer.endVideoExport?.();                      // restore original video sources
         renderer.setCaptureScale(1);
+        renderer.resumeVideos?.();                        // back to live playback in the preview
       }
 
       setPhase('encoding');
@@ -102,7 +204,8 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
         audio,
       });
 
-      setOutputs(files);
+      setEngine('ffmpeg');
+      setOutputs((files as string[]).map((f) => ({ name: f, url: `${BASE_PATH}/exports/${f}` })));
       setPhase('done');
       s.setFrame(s.frame);
       if (wasPlaying) s.setPlaying(true);
@@ -176,6 +279,8 @@ npm run dev`}</code></pre>
             <button className="btn primary full" onClick={run}>Start export</button>
           )}
 
+          {phase === 'preparing' && <div className="progress"><span>Preparing videos…</span></div>}
+
           {phase === 'capturing' && (
             <div className="progress">
               <div className="progress-bar"><div style={{ width: `${(captured / total) * 100}%` }} /></div>
@@ -187,12 +292,25 @@ npm run dev`}</code></pre>
 
           {phase === 'done' && (
             <div className="export-done">
-              <p>Done. Saved to <code>/exports</code>:</p>
+              <p>
+                Done{engine === 'webcodecs'
+                  ? ' — encoded in-browser (WebCodecs, GPU).'
+                  : <>. Generated in <code>/exports</code>:</>}
+              </p>
               <ul>
                 {outputs.map((f) => (
-                  <li key={f}><a href={`${BASE_PATH}/exports/${f}`} download>{f}</a></li>
+                  <li key={f.name}><a href={f.url} download={f.name}>{f.name}</a></li>
                 ))}
               </ul>
+              {canPickDir && (
+                <>
+                  <button className="btn primary full" onClick={saveToFolder} disabled={saving}>
+                    {saving ? 'Saving…' : savedTo ? 'Save to another folder…' : 'Choose folder & save'}
+                  </button>
+                  {savedTo && <p className="ctl-hint">Saved to <code>{savedTo}</code>.</p>}
+                  {saveErr && <div className="export-error">Save failed: {saveErr}</div>}
+                </>
+              )}
             </div>
           )}
 
