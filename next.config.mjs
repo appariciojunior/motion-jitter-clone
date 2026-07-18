@@ -4,7 +4,12 @@
 // project subpath, with the server-only /api/export route removed by the
 // workflow. Unset (default) → normal dev/build with native-ffmpeg export.
 const isStatic = process.env.STATIC_EXPORT === '1';
-const basePath = isStatic ? '/motion-studio-open' : '';
+// Project Pages sites are served under /<repo>/, so the basePath must match the
+// repository name or every asset URL 404s. GitHub Actions exposes it as
+// GITHUB_REPOSITORY="owner/repo"; derive from that so forks work without edits.
+// Falls back to the local repo name when built outside Actions.
+const repoName = (process.env.GITHUB_REPOSITORY || '').split('/')[1] || 'web-motion-export';
+const basePath = isStatic ? `/${repoName}` : '';
 
 const nextConfig = {
   reactStrictMode: false, // avoid double Pixi mount in dev
