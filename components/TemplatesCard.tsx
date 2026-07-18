@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useSceneStore } from '@/store/useSceneStore';
-import { templateList, templateGroups } from '@/templates';
+import { templateList, templateGroups, getTemplate } from '@/templates';
 import TemplateThumb from './TemplateThumb';
 import { CollapseButton } from './TplCollapse';
+import { ControlRow } from './Controls';
 
 const Chevron = ({ dir = 'right' }: { dir?: 'right' | 'left' }) => (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={dir === 'left' ? { transform: 'rotate(180deg)' } : undefined}>
@@ -12,9 +13,16 @@ const Chevron = ({ dir = 'right' }: { dir?: 'right' | 'left' }) => (
   </svg>
 );
 
-export default function TemplatesCard() {
+// `controlsInline` adds a third drill level — Group ▸ Template ▸ Sliders —
+// used by board mode, which has no middle column to show a template's own
+// controls in. Selecting a template opens its sliders right here, over the same
+// left bar, keeping the search and back that already exist. Off (2D/web), the
+// card behaves exactly as before: selecting only sets the active template.
+export default function TemplatesCard({ controlsInline = false }: { controlsInline?: boolean }) {
   const activeTemplateId = useSceneStore((s) => s.activeTemplateId);
   const setActiveTemplate = useSceneStore((s) => s.setActiveTemplate);
+  const values = useSceneStore((s) => s.values);
+  const setValue = useSceneStore((s) => s.setValue);
   const customPresets = useSceneStore((s) => s.customPresets);
   const loadCustomPresets = useSceneStore((s) => s.loadCustomPresets);
   const saveCustomPreset = useSceneStore((s) => s.saveCustomPreset);
@@ -22,6 +30,8 @@ export default function TemplatesCard() {
   const deleteCustomPreset = useSceneStore((s) => s.deleteCustomPreset);
   const [tab, setTab] = useState<'templates' | 'custom'>('templates');
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  // board mode: the selected template's sliders are open in the left bar.
+  const [showControls, setShowControls] = useState(false);
   const [query, setQuery] = useState('');
   const [naming, setNaming] = useState(false);
   const [presetName, setPresetName] = useState('');
@@ -30,6 +40,12 @@ export default function TemplatesCard() {
   useEffect(() => { loadCustomPresets(); }, [loadCustomPresets]);
 
   const activeMeta = templateList.find((t) => t.meta.id === activeTemplateId)?.meta;
+
+  // Select a template. In board mode this also drills into its sliders.
+  const pick = (id: string) => {
+    setActiveTemplate(id);
+    if (controlsInline) setShowControls(true);
+  };
 
   const commitPreset = () => {
     const name = presetName.trim() || `${activeMeta?.name ?? 'Preset'} custom`;
@@ -101,13 +117,36 @@ export default function TemplatesCard() {
               <button
                 key={t.meta.id}
                 className={`tpl-card ${activeTemplateId === t.meta.id ? 'active' : ''}`}
-                onClick={() => setActiveTemplate(t.meta.id)}
+                onClick={() => pick(t.meta.id)}
               >
                 <TemplateThumb template={t} />
                 <span className="tpl-card-label">{t.meta.name}</span>
               </button>
             ))}
           </div>
+        ) : controlsInline && showControls ? (
+          // board mode third level: the selected template's own sliders
+          <>
+            <div className="tpl-group-head">
+              <button className="tpl-back" onClick={() => setShowControls(false)}>
+                <Chevron dir="left" />
+              </button>
+              <span className="tpl-group-title">{activeMeta?.name ?? 'Controls'}</span>
+            </div>
+            <div className="section-body">
+              {getTemplate(activeTemplateId).controls
+                // count is owned by the board (its Cards slider), not the template
+                .filter((def) => def.key !== 'count')
+                .map((def) => (
+                  <ControlRow
+                    key={def.key}
+                    def={def}
+                    value={values[def.key]}
+                    onChange={(val) => setValue(def.key, val)}
+                  />
+                ))}
+            </div>
+          </>
         ) : (
           // Accordion: keep catalogue context while showing one group's models.
           <>
