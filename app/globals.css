@@ -506,6 +506,69 @@ select.field { padding-right: 26px; }
 .app.right-collapsed .panel-toggle-right svg { transform: rotate(180deg); }
 .stage-wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 48px; }
 .stage-canvas { max-width: 100%; max-height: 100%; width: auto; height: auto; border-radius: var(--r-ctrl); }
+
+/* ---- Board mode: DOM cards posed from the rAF loop ---- */
+.board-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+/* Fixed-size artboard, centred and scaled to fit by JS (transform set inline). */
+.board-frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  border-radius: var(--r-ctrl);
+  background: var(--card-soft);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.14);
+}
+.board-card {
+  width: 200px;
+  height: 260px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  /* The card body never triggers hover — only the small hotspot does — so the
+     heavy overlap between cards can't hijack the wrong card's trigger. */
+  pointer-events: none;
+}
+/* Number moved to top-centre. */
+.board-card-num {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+/* 56×56 hover hotspot around the number: the only pointer-active region. */
+.board-hotspot {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* ---- Board mode: project save/load ---- */
+.board-json { width: 100%; margin-top: 8px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.4; }
+.board-json-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.board-json-actions .web-clear { flex: 0 0 auto; }
+.board-json-file { margin: 0; }
+.board-json-status.is-ok  { color: #15803d; }
+.board-json-status.is-err { color: #b91c1c; }
 .stage-fs {
   position: absolute; right: 10px; bottom: 10px; width: 30px; height: 30px;
   border-radius: var(--r-seg); color: var(--fg-faint); display: grid; place-items: center;
